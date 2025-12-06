@@ -1,12 +1,12 @@
-import User from "./models/User.js";
-import ResetToken from "../models/ResetToken.js";
-
 export const adminLogin = (req, res) => {
   const { username, password } = req.body;
 
-  if (username === "admin" && password === "admin123") {
-    return res.json({ msg: "Admin Login Successful" });
+  const ADMIN_USER = "admin";
+  const ADMIN_PASS = "admin123";
+
+  if (username === ADMIN_USER && password === ADMIN_PASS) {
+    return res.json({ message: "Admin login success" });
   }
 
-  return res.status(400).json({ msg: "Invalid Credentials" });
+  return res.status(400).json({ message: "Invalid admin credentials" });
 };

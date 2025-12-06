@@ -1,27 +1,36 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import LandingPage from "./Components/LandingPage";
-import AdminLogin from "./Components/AdminLogin";
-import UserRegister from "./Components/UserRegister";
-import UserLogin from "./Components/UserLogin";
-import ForgotPassword from "./Components/ForgotPassword";
-import ResetPassword from "./Components/ResetPassword";
-import AdminDashboard from "./Components/Admin/AdminDashboard";
 
-function App() {
+// Admin Pages
+import AdminLogin from "./admin/AdminLogin";
+import AdminDashboard from "./admin/AdminDashboard";
+
+// User Pages
+import Register from "./user/Register";
+import VerifyOTP from "./user/VerifyOTP";
+import Login from "./user/Login";
+import ForgotPassword from "./user/ForgotPassword";
+import ResetPassword from "./user/ResetPassword";
+
+// Landing Page
+import LandingPage from "./Pages/LandingPage";
+
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+
         <Route path="/" element={<LandingPage />} />
-        <Route path="/admin-login" element={<AdminLogin />} />
-        <Route path="/user-register" element={<UserRegister />} />
-        <Route path="/user-login" element={<UserLogin />} />
+
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+        <Route path="/register" element={<Register />} />
+        <Route path="/verify-otp" element={<VerifyOTP />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
       </Routes>
     </BrowserRouter>
   );
 }
-
-export default App;
