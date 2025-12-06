@@ -36,86 +36,111 @@ export const addQuestion = async (req, res) => {
 // --- 3. BULK UPLOAD QUESTIONS (EXCEL) ---
 export const uploadQuestions = async (req, res) => {
   try {
-    // Check if file exists
-    if (!req.file) {
-      return res.status(400).json({ message: "No file uploaded" });
-    }
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
 
-    // 1. Read the Excel File
     const workbook = xlsx.readFile(req.file.path);
-    const sheetName = workbook.SheetNames[0]; // Take the first sheet
+    const sheetName = workbook.SheetNames[0];
     const sheetData = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    // 2. Map Excel Headers to Database Schema
-    // Expects headers: Question, Subject, Difficulty, OptionA, OptionB, OptionC, OptionD, CorrectAnswer
-    const questionsToInsert = sheetData.map((row) => ({
-      questionText: row.Question,
-      subject: row.Subject,
-      difficulty: row.Difficulty,
-      options: [
-        row.OptionA, 
-        row.OptionB, 
-        row.OptionC, 
-        row.OptionD
-      ].filter(opt => opt !== undefined), // Remove empty options if any
-      correctAnswer: row.CorrectAnswer
-    }));
-
-    if (questionsToInsert.length === 0) {
-      return res.status(400).json({ message: "Excel file is empty or formatted incorrectly" });
+    // DEBUG: Print the first row to see what headers Excel actually found
+    if (sheetData.length > 0) {
+      console.log("Excel Headers Found:", Object.keys(sheetData[0]));
     }
 
-    // 3. Bulk Insert into MongoDB
-    await Question.insertMany(questionsToInsert);
+    const questionsToInsert = sheetData.map((row) => {
+      // Helper to find key case-insensitively
+      const getKey = (key) => Object.keys(row).find(k => k.toLowerCase() === key.toLowerCase());
 
-    // 4. Cleanup: Delete the temporary file
+      return {
+        questionText: row[getKey("question")] || row[getKey("questiontext")],
+        subject: row[getKey("subject")], // Matches 'Subject', 'subject', 'SUBJECT'
+        difficulty: row[getKey("difficulty")], // Matches 'Difficulty', 'difficulty'
+        options: [
+          row[getKey("optiona")], 
+          row[getKey("optionb")], 
+          row[getKey("optionc")], 
+          row[getKey("optiond")]
+        ].filter(Boolean),
+        correctAnswer: row[getKey("correctanswer")] || row[getKey("correct")]
+      };
+    });
+
+    // Remove rows where crucial data is missing
+    const validQuestions = questionsToInsert.filter(q => q.questionText && q.subject && q.difficulty);
+
+    if (validQuestions.length === 0) {
+      return res.status(400).json({ message: "No valid questions found. Check Excel headers." });
+    }
+
+    await Question.insertMany(validQuestions);
     fs.unlinkSync(req.file.path);
 
     res.status(201).json({ 
-      message: `Successfully uploaded ${questionsToInsert.length} questions!` 
+      message: `Successfully uploaded ${validQuestions.length} questions! (Skipped ${questionsToInsert.length - validQuestions.length} bad rows)` 
     });
 
   } catch (error) {
     console.error("Upload Error:", error);
-    res.status(500).json({ message: "Failed to upload questions", error: error.message });
+    res.status(500).json({ message: "Failed to upload", error: error.message });
   }
 };
 
 // --- 4. GENERATE PAPER (The Algorithm) ---
+// --- 4. GENERATE PAPER (Smart Version) ---
 export const generatePaper = async (req, res) => {
-  const { title, subject, easyCount, mediumCount, hardCount } = req.body;
+  let { title, subject, easyCount, mediumCount, hardCount } = req.body;
 
-  // --- ADD THIS CHECK ---
+  // 1. Validation & Cleanup
   if (!title || title.trim() === "") {
     return res.status(400).json({ message: "Please provide an Exam Title." });
   }
 
+  // Remove spaces: " OS " -> "OS"
+  // Escape special chars just in case
+  const cleanSubject = subject.trim(); 
+  
+  // Create a "Case Insensitive" search pattern
+  // This matches "os", "OS", "Os", "oS"
+  const subjectRegex = new RegExp(`^${cleanSubject}$`, "i");
+
+  console.log(`Generating for: "${cleanSubject}" (Regex: ${subjectRegex})`);
+
   try {
-    // MongoDB Aggregation to pick RANDOM questions
+    // 2. Check counts using the Regex
+    const totalEasy = await Question.countDocuments({ subject: subjectRegex, difficulty: "Easy" });
+    const totalMedium = await Question.countDocuments({ subject: subjectRegex, difficulty: "Medium" });
+    const totalHard = await Question.countDocuments({ subject: subjectRegex, difficulty: "Hard" });
+
+    console.log(`Found: Easy=${totalEasy}, Medium=${totalMedium}, Hard=${totalHard}`);
+
+    if (totalEasy < easyCount || totalMedium < mediumCount || totalHard < hardCount) {
+      return res.status(400).json({ 
+        message: `Not enough questions! Requested (E:${easyCount}, M:${mediumCount}, H:${hardCount}) but found (E:${totalEasy}, M:${totalMedium}, H:${totalHard}) for ${cleanSubject}`
+      });
+    }
+
+    // 3. Aggregate Random Questions using the Regex
     const easyQ = await Question.aggregate([
-      { $match: { subject, difficulty: "Easy" } },
+      { $match: { subject: subjectRegex, difficulty: "Easy" } },
       { $sample: { size: Number(easyCount) } }
     ]);
 
     const mediumQ = await Question.aggregate([
-      { $match: { subject, difficulty: "Medium" } },
+      { $match: { subject: subjectRegex, difficulty: "Medium" } },
       { $sample: { size: Number(mediumCount) } }
     ]);
 
     const hardQ = await Question.aggregate([
-      { $match: { subject, difficulty: "Hard" } },
+      { $match: { subject: subjectRegex, difficulty: "Hard" } },
       { $sample: { size: Number(hardCount) } }
     ]);
 
     const allQuestions = [...easyQ, ...mediumQ, ...hardQ];
 
-    if (allQuestions.length === 0) {
-      return res.status(400).json({ message: "Not enough questions in database for this criteria." });
-    }
-
+    // 4. Create Exam
     const newExam = new Exam({
       title,
-      subject,
+      subject: cleanSubject, // Save the clean name (e.g., "OS")
       questions: allQuestions.map(q => q._id)
     });
 
@@ -129,7 +154,7 @@ export const generatePaper = async (req, res) => {
 
   } catch (error) {
     console.error("Generate Error:", error);
-    res.status(500).json({ message: "Error generating exam" });
+    res.status(500).json({ message: "Server Error generating exam" });
   }
 };
 
@@ -155,5 +180,17 @@ export const getExamById = async (req, res) => {
     res.json(exam);
   } catch (error) {
     res.status(500).json({ message: "Error loading exam" });
+  }
+};
+// --- 7. DEBUG: VIEW ALL QUESTIONS ---
+export const getAllQuestions = async (req, res) => {
+  try {
+    const questions = await Question.find({});
+    res.json({
+      count: questions.length,
+      sample: questions.slice(0, 3) // Show first 3 questions only
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error" });
   }
 };

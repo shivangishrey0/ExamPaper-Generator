@@ -7,14 +7,18 @@ export default function AdminDashboard() {
   
   // --- STATES ---
   const [qData, setQData] = useState({
-    questionText: "", subject: "DBMS", difficulty: "Easy", 
+    questionText: "", 
+    subject: "DBMS", 
+    difficulty: "Easy", 
     option1: "", option2: "", option3: "", option4: "", correctAnswer: ""
   });
 
   const [file, setFile] = useState(null);
 
   const [gData, setGData] = useState({
-    title: "", subject: "DBMS", easyCount: 0, mediumCount: 0, hardCount: 0
+    title: "", 
+    subject: "DBMS", 
+    easyCount: 0, mediumCount: 0, hardCount: 0
   });
 
   const [exams, setExams] = useState([]);
@@ -130,9 +134,16 @@ export default function AdminDashboard() {
             <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto border-t-4 border-blue-900">
               <h2 className="text-2xl font-bold mb-6 text-blue-900">Add New Question</h2>
               <div className="grid grid-cols-2 gap-4 mb-4">
+                
+                {/* --- UPDATED DROPDOWN (Manual Add) --- */}
                 <select className="border p-2 rounded" value={qData.subject} onChange={(e) => setQData({...qData, subject: e.target.value})}>
-                  <option>DBMS</option><option>OS</option><option>CN</option>
+                  <option value="DBMS">DBMS</option>
+                  <option value="Operating System">Operating System</option>
+                  <option value="Computer Networks">Computer Networks</option>
+                  <option value="Algorithms">Algorithms</option>
+                  <option value="Digital Logic">Digital Logic</option>
                 </select>
+
                 <select className="border p-2 rounded" value={qData.difficulty} onChange={(e) => setQData({...qData, difficulty: e.target.value})}>
                   <option>Easy</option><option>Medium</option><option>Hard</option>
                 </select>
@@ -166,9 +177,16 @@ export default function AdminDashboard() {
             <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto border-t-4 border-purple-900">
               <h2 className="text-2xl font-bold mb-6 text-purple-900">Auto-Generate Exam</h2>
               <input placeholder="Exam Title (e.g., Mid-Term DBMS)" className="w-full border p-2 rounded mb-4" onChange={(e) => setGData({...gData, title: e.target.value})} />
+              
+              {/* --- UPDATED DROPDOWN (Generator) --- */}
               <select className="w-full border p-2 rounded mb-6" onChange={(e) => setGData({...gData, subject: e.target.value})}>
-                 <option>DBMS</option><option>OS</option><option>CN</option>
+                 <option value="DBMS">DBMS</option>
+                 <option value="Operating System">Operating System</option>
+                 <option value="Computer Networks">Computer Networks</option>
+                 <option value="Algorithms">Algorithms</option>
+                 <option value="Digital Logic">Digital Logic</option>
               </select>
+
               <div className="space-y-4 mb-6">
                 <div className="flex justify-between items-center bg-green-50 p-3 rounded"><span>Easy</span><input type="number" className="border w-20 p-1" onChange={(e) => setGData({...gData, easyCount: e.target.value})} /></div>
                 <div className="flex justify-between items-center bg-yellow-50 p-3 rounded"><span>Medium</span><input type="number" className="border w-20 p-1" onChange={(e) => setGData({...gData, mediumCount: e.target.value})} /></div>
@@ -178,7 +196,7 @@ export default function AdminDashboard() {
             </div>
           )}
           
-           {/* 4. VIEW EXAMS (UPDATED) */}
+           {/* 4. VIEW EXAMS */}
            {activeTab === "view" && (
              <div className="grid gap-4">
                  {exams.length === 0 && <p className="text-gray-500">No exams generated yet.</p>}
@@ -192,8 +210,6 @@ export default function AdminDashboard() {
                             <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
                                 {exam.questions?.length || 0} Questions
                             </span>
-                            
-                            {/* NEW NAVIGATION BUTTON */}
                             <button 
                               onClick={() => navigate(`/admin/view-exam/${exam._id}`)}
                               className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm font-bold shadow-sm"

@@ -1,12 +1,14 @@
 import express from "express";
 import multer from "multer"; // <--- THIS WAS MISSING
+import { getAllQuestions } from "../controllers/adminController.js";
+// ... existing routes ...
 import { 
-  adminLogin, 
-  addQuestion, 
-  generatePaper, 
-  getExams,
-  uploadQuestions,
-  getExamById 
+    adminLogin, 
+    addQuestion, 
+    generatePaper, 
+    getExams,
+    uploadQuestions,
+    getExamById 
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -23,5 +25,6 @@ router.post("/upload-questions", upload.single("file"), uploadQuestions);
 router.post("/generate-paper", generatePaper);
 router.get("/get-exams", getExams);
 router.get("/exam/:id", getExamById);
+router.get("/debug-questions", getAllQuestions);
 
 export default router;
