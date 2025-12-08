@@ -229,6 +229,13 @@ export default function AdminDashboard() {
                             >
                               View
                             </button>
+                            {/* CHECK SUBMISSIONS BUTTON */}
+                            <button 
+                              onClick={() => navigate(`/admin/check-paper/${exam._id}`)}
+                              className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 text-sm font-bold shadow-sm"
+                            >
+                              Results 📊
+                            </button>
 
                             {/* PUBLISH BUTTON (Only if not published) */}
                             {!exam.isPublished && (

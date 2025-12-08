@@ -37,30 +37,33 @@ export default function TakeExam() {
   };
 
   const handleSubmit = async () => {
-    if (!window.confirm("Are you sure you want to submit? This cannot be undone.")) return;
+    if (!window.confirm("Are you sure you want to submit?")) return;
     
-    try {
-      // Get User ID from LocalStorage (Assuming you saved it during login)
-      // If you are using JWT, backend handles it. If using simple ID, send it here.
-      // const userId = localStorage.getItem("userId"); 
+    // 1. GET THE SAVED ID
+    const studentId = localStorage.getItem("userId");
 
+    // Safety Check
+    if (!studentId) {
+      alert("User ID missing. Please Logout and Login again.");
+      return;
+    }
+
+    try {
       const res = await fetch("/api/user/submit-exam", {
           method: "POST",
-          headers: { 
-              "Content-Type": "application/json",
-              // "Authorization": `Bearer ${localStorage.getItem("token")}` 
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ 
             examId: id, 
             answers,
-            // studentId: userId // Uncomment if your backend needs explicit student ID
+            studentId: studentId 
           }),
       });
 
       if (res.ok) {
         setStep("submitted");
       } else {
-        alert("Submission failed. Please try again.");
+        const errorData = await res.json(); 
+        alert("Submission failed: " + errorData.message);
       }
     } catch (error) {
       alert("Network error. Could not submit.");
@@ -94,13 +97,10 @@ export default function TakeExam() {
               screenshotFormat="image/jpeg"
               className="absolute inset-0 w-full h-full object-cover"
               onUserMedia={() => setCameraAllowed(true)}
-              
-              // 👇 UPDATED ERROR HANDLING HERE 👇
               onUserMediaError={(err) => {
                  console.error("Camera Error:", err);
                  alert(`Camera Failed: ${err.name} - ${err.message}`);
               }}
-              // 👆 -------------------------- 👆
             />
             {!cameraAllowed && <p className="text-white z-10 font-bold">Waiting for camera permission...</p>}
           </div>
@@ -147,20 +147,34 @@ export default function TakeExam() {
                 <p className="font-semibold text-lg mb-4 text-gray-800">
                   <span className="text-blue-600 mr-2">Q{index + 1}.</span> {q.questionText}
                 </p>
+                
+                {/* 👇 FIXED OPTIONS MAPPING 👇 */}
                 <div className="space-y-2 pl-4">
-                  {q.options.map((opt, i) => (
-                    <label key={i} className={`flex items-center p-3 rounded border cursor-pointer hover:bg-blue-50 transition ${answers[q._id] === opt ? "bg-blue-100 border-blue-500 ring-1 ring-blue-500" : "border-gray-200"}`}>
-                      <input 
-                        type="radio" 
-                        name={q._id} 
-                        value={opt}
-                        onChange={() => setAnswers({...answers, [q._id]: opt})}
-                        className="w-4 h-4 text-blue-600 mr-3"
-                      />
-                      {opt}
-                    </label>
-                  ))}
+                  {q.options.map((opt, i) => {
+                    // Generate Key: OptionA, OptionB, OptionC...
+                    const optionLabel = String.fromCharCode(65 + i); // 0->A, 1->B
+                    const optionKey = `Option${optionLabel}`; 
+                    
+                    return (
+                      <label key={i} className={`flex items-center p-3 rounded border cursor-pointer hover:bg-blue-50 transition ${answers[q._id] === optionKey ? "bg-blue-100 border-blue-500 ring-1 ring-blue-500" : "border-gray-200"}`}>
+                        <input 
+                          type="radio" 
+                          name={q._id} 
+                          // Send "OptionA" to backend
+                          value={optionKey} 
+                          checked={answers[q._id] === optionKey}
+                          onChange={() => setAnswers({...answers, [q._id]: optionKey})}
+                          className="w-4 h-4 text-blue-600 mr-3"
+                        />
+                        {/* Show "A) Text" to student */}
+                        <span className="font-bold mr-2 text-gray-400">({optionLabel})</span>
+                        {opt} 
+                      </label>
+                    );
+                  })}
                 </div>
+                {/* 👆 END FIX 👆 */}
+
               </div>
             ))}
           </div>
@@ -191,7 +205,7 @@ export default function TakeExam() {
             Your session is being monitored.
           </p>
           
-          {/* Simple Question Navigator */}
+          {/* Question Navigator */}
           <div className="mt-8 w-full grid grid-cols-5 gap-2">
             {exam.questions.map((q, i) => (
                 <div key={i} className={`h-8 w-8 rounded flex items-center justify-center text-xs font-bold ${answers[q._id] ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300'}`}>

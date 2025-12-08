@@ -13,7 +13,9 @@ import Login from "./User/Login";
 import ForgotPassword from "./User/ForgotPassword";
 import ResetPassword from "./User/ResetPassword";
 import TakeExam from "./Pages/TakeExam";
+import AdminCheckPaper from "./Admin/AdminCheckPaper"; // Import at top
 
+// Inside Routes
 // Landing Page
 import LandingPage from "./Pages/LandingPage";
 
@@ -36,6 +38,7 @@ export default function App() {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/view-exam/:id" element={<AdminViewPaper />} />
+        <Route path="/admin/check-paper/:examId" element={<AdminCheckPaper />} />
         
       </Routes>
     </BrowserRouter>
