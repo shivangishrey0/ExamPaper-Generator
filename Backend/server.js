@@ -6,7 +6,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import authRoutes from "./routes/authRoutes.js";
 import adminRoutes from "./routes/adminRoutes.js";
-
+import userRoutes from "./routes/userRoutes.js";
 
 const app = express();
 app.use(cors());
@@ -17,6 +17,7 @@ app.use("/api/user", authRoutes);
 
 // Admin Routes
 app.use("/api/admin", adminRoutes);
+app.use("/api/user", userRoutes);
 
 app.get("/", (req, res) => {
   res.send("Backend Running...");

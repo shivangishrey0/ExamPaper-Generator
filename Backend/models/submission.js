@@ -9,4 +9,5 @@ const submissionSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-export default mongoose.model("Submission", submissionSchema);
+// FIX: Check if model exists before creating it
+export default mongoose.models.Submission || mongoose.model("Submission", submissionSchema);

@@ -40,13 +40,21 @@ export default function TakeExam() {
     if (!window.confirm("Are you sure you want to submit? This cannot be undone.")) return;
     
     try {
+      // Get User ID from LocalStorage (Assuming you saved it during login)
+      // If you are using JWT, backend handles it. If using simple ID, send it here.
+      // const userId = localStorage.getItem("userId"); 
+
       const res = await fetch("/api/user/submit-exam", {
           method: "POST",
           headers: { 
               "Content-Type": "application/json",
-              // "Authorization": `Bearer ${localStorage.getItem("token")}` // Uncomment if using JWT
+              // "Authorization": `Bearer ${localStorage.getItem("token")}` 
           },
-          body: JSON.stringify({ examId: id, answers }),
+          body: JSON.stringify({ 
+            examId: id, 
+            answers,
+            // studentId: userId // Uncomment if your backend needs explicit student ID
+          }),
       });
 
       if (res.ok) {
@@ -86,7 +94,13 @@ export default function TakeExam() {
               screenshotFormat="image/jpeg"
               className="absolute inset-0 w-full h-full object-cover"
               onUserMedia={() => setCameraAllowed(true)}
-              onUserMediaError={() => alert("Camera blocked! Please allow access in your browser settings.")}
+              
+              // 👇 UPDATED ERROR HANDLING HERE 👇
+              onUserMediaError={(err) => {
+                 console.error("Camera Error:", err);
+                 alert(`Camera Failed: ${err.name} - ${err.message}`);
+              }}
+              // 👆 -------------------------- 👆
             />
             {!cameraAllowed && <p className="text-white z-10 font-bold">Waiting for camera permission...</p>}
           </div>

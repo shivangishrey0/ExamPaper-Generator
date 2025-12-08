@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { generateOTP, otpExpiry } from "../utils/otp.js";
 import { sendMail } from "../utils/mailer.js";
+import Exam from "../models/Exam.js";
+import Submission from "../models/Submission.js";
 
 // ---------------- REGISTER START (SEND OTP) ----------------
 export const registerStart = async (req, res) => {
@@ -126,4 +128,58 @@ export const resetPassword = async (req, res) => {
   await user.save();
 
   res.json({ message: "Password reset successful" });
+};
+// --- STUDENT: GET AVAILABLE EXAMS ---
+export const getAvailableExams = async (req, res) => {
+  try {
+    // FIX: Only fetch exams where isPublished is TRUE
+    const exams = await Exam.find({ isPublished: true }).sort({ createdAt: -1 });
+    res.json(exams);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching exams" });
+  }
+};
+
+// --- STUDENT: GET SINGLE EXAM ---
+export const getExamById = async (req, res) => {
+  try {
+    const exam = await Exam.findById(req.params.id).populate("questions");
+    if (!exam) return res.status(404).json({ message: "Exam not found" });
+    res.json(exam);
+  } catch (error) {
+    res.status(500).json({ message: "Error loading exam" });
+  }
+};
+
+// --- STUDENT: SUBMIT EXAM ---
+export const submitExam = async (req, res) => {
+  const { examId, answers } = req.body;
+  
+  try {
+    const exam = await Exam.findById(examId).populate("questions");
+    if (!exam) return res.status(404).json({ message: "Exam not found" });
+
+    let score = 0;
+    const total = exam.questions.length;
+
+    // Calculate Score
+    exam.questions.forEach((q) => {
+      if (answers[q._id] === q.correctAnswer) {
+        score++;
+      }
+    });
+
+    // Note: We are currently just returning the score. 
+    // To save it for the Admin to see, we would create a 'Submission' here.
+    
+    res.json({ 
+      message: "Exam Submitted!", 
+      score: score, 
+      total: total,
+      percentage: ((score / total) * 100).toFixed(2)
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "Error submitting exam" });
+  }
 };

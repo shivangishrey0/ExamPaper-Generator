@@ -198,19 +198,28 @@ export const getAllQuestions = async (req, res) => {
 // --- PUBLISH EXAM ---
 export const publishExam = async (req, res) => {
   try {
-    await Exam.findByIdAndUpdate(req.params.id, { isPublished: true });
-    res.json({ message: "Exam is now LIVE for students!" });
+    // This updates the database to say "isPublished: true"
+    const updatedExam = await Exam.findByIdAndUpdate(
+      req.params.id, 
+      { isPublished: true },
+      { new: true } // Return the updated document
+    );
+    
+    if (!updatedExam) return res.status(404).json({ message: "Exam not found" });
+    
+    console.log(`Exam Published: ${updatedExam.title}`); // Debug Log
+    res.json({ message: "Exam is now LIVE for students!", exam: updatedExam });
   } catch (error) {
+    console.error("Publish Error:", error);
     res.status(500).json({ message: "Error publishing exam" });
   }
 };
 
-// --- GET STUDENT SUBMISSIONS ---
+// --- 9. GET SUBMISSIONS ---
 export const getSubmissions = async (req, res) => {
   try {
-    // Find submissions for a specific exam and populate student details
     const submissions = await Submission.find({ examId: req.params.examId })
-      .populate("studentId", "username email") // Get student name
+      .populate("studentId", "username email")
       .populate("examId", "title");
     res.json(submissions);
   } catch (error) {
@@ -218,7 +227,7 @@ export const getSubmissions = async (req, res) => {
   }
 };
 
-// --- GRADE / PUBLISH RESULT ---
+// --- 10. GRADE SUBMISSION ---
 export const gradeSubmission = async (req, res) => {
   const { submissionId, score } = req.body;
   try {

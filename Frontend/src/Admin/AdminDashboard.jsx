@@ -77,7 +77,10 @@ export default function AdminDashboard() {
         body: JSON.stringify(gData),
       });
       const data = await res.json();
-      if (res.ok) alert(`Success! Exam created with ${data.totalQuestions} questions.`);
+      if (res.ok) {
+        alert(`Success! Exam created with ${data.totalQuestions} questions.`);
+        fetchExams(); // Refresh list if needed
+      }
       else alert(data.message);
     } catch (err) {
       alert("Server Error");
@@ -196,7 +199,7 @@ export default function AdminDashboard() {
             </div>
           )}
           
-           {/* 4. VIEW EXAMS */}
+           {/* 4. VIEW EXAMS (UPDATED with Publish Logic) */}
            {activeTab === "view" && (
              <div className="grid gap-4">
                  {exams.length === 0 && <p className="text-gray-500">No exams generated yet.</p>}
@@ -205,17 +208,47 @@ export default function AdminDashboard() {
                          <div>
                             <h3 className="font-bold text-lg">{exam.title}</h3>
                             <p className="text-gray-600">Subject: {exam.subject}</p>
+                            
+                            {/* STATUS BADGE */}
+                            {exam.isPublished ? (
+                               <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold ml-2">LIVE ✅</span>
+                            ) : (
+                               <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded ml-2">Draft 🔒</span>
+                            )}
                          </div>
-                         <div className="flex items-center gap-4">
+                         
+                         <div className="flex items-center gap-3">
                             <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
-                                {exam.questions?.length || 0} Questions
+                                {exam.questions?.length || 0} Qs
                             </span>
+                            
+                            {/* VIEW BUTTON */}
                             <button 
                               onClick={() => navigate(`/admin/view-exam/${exam._id}`)}
                               className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-sm font-bold shadow-sm"
                             >
-                              View Full Paper →
+                              View
                             </button>
+
+                            {/* PUBLISH BUTTON (Only if not published) */}
+                            {!exam.isPublished && (
+                              <button 
+                                onClick={async () => {
+                                    if(!confirm("Are you sure? Students will be able to see this exam.")) return;
+                                    
+                                    const res = await fetch(`/api/admin/publish/${exam._id}`, { method: "PUT" });
+                                    if(res.ok) {
+                                        alert("Exam Published Successfully!");
+                                        fetchExams(); // Refresh list to update UI
+                                    } else {
+                                        alert("Error publishing exam");
+                                    }
+                                }}
+                                className="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 text-sm font-bold shadow-sm"
+                              >
+                                Publish 🚀
+                              </button>
+                            )}
                          </div>
                      </div>
                  ))}
