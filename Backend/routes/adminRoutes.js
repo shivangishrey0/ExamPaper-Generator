@@ -1,6 +1,7 @@
 import express from "express";
 import multer from "multer"; // <--- THIS WAS MISSING
 import { getAllQuestions } from "../controllers/adminController.js";
+import { publishExam, getSubmissions, gradeSubmission } from "../controllers/adminController.js";
 // ... existing routes ...
 import { 
     adminLogin, 
@@ -26,5 +27,8 @@ router.post("/generate-paper", generatePaper);
 router.get("/get-exams", getExams);
 router.get("/exam/:id", getExamById);
 router.get("/debug-questions", getAllQuestions);
+router.put("/publish/:id", publishExam);
+router.get("/submissions/:examId", getSubmissions);
+router.post("/grade-paper", gradeSubmission);
 
 export default router;

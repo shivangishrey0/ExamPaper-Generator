@@ -2,6 +2,7 @@ import Question from "../models/Questions.js";
 import Exam from "../models/Exam.js";
 import xlsx from "xlsx";
 import fs from "fs";
+import Submission from "../models/submission.js";
 
 // --- 1. ADMIN LOGIN ---
 export const adminLogin = (req, res) => {
@@ -192,5 +193,41 @@ export const getAllQuestions = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: "Error" });
+  }
+};
+// --- PUBLISH EXAM ---
+export const publishExam = async (req, res) => {
+  try {
+    await Exam.findByIdAndUpdate(req.params.id, { isPublished: true });
+    res.json({ message: "Exam is now LIVE for students!" });
+  } catch (error) {
+    res.status(500).json({ message: "Error publishing exam" });
+  }
+};
+
+// --- GET STUDENT SUBMISSIONS ---
+export const getSubmissions = async (req, res) => {
+  try {
+    // Find submissions for a specific exam and populate student details
+    const submissions = await Submission.find({ examId: req.params.examId })
+      .populate("studentId", "username email") // Get student name
+      .populate("examId", "title");
+    res.json(submissions);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching submissions" });
+  }
+};
+
+// --- GRADE / PUBLISH RESULT ---
+export const gradeSubmission = async (req, res) => {
+  const { submissionId, score } = req.body;
+  try {
+    await Submission.findByIdAndUpdate(submissionId, { 
+      score, 
+      isGraded: true 
+    });
+    res.json({ message: "Result published to student dashboard!" });
+  } catch (error) {
+    res.status(500).json({ message: "Error grading paper" });
   }
 };

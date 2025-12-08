@@ -4,7 +4,8 @@ const examSchema = new mongoose.Schema({
   title: { type: String, required: true },
   subject: { type: String, required: true },
   questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question" }],
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  isPublished: { type: Boolean, default: false }
 });
 
 export default mongoose.model("Exam", examSchema);
