@@ -104,35 +104,122 @@ export const uploadQuestions = async (req, res) => {
 };
 
 // --- 4. GENERATE PAPER ---
+// --- 4. GENERATE PAPER (MIXED: MCQ + SUBJECTIVE) ---
+// --- 4. MASTER EXAM GENERATOR ---
+// --- 4. MASTER EXAM GENERATOR (FLEXIBLE FIX) ---
 export const generatePaper = async (req, res) => {
-  let { title, subject, easyCount, mediumCount, hardCount } = req.body;
-  const cleanSubject = subject.trim(); 
-  const subjectRegex = new RegExp(`^${cleanSubject}$`, "i");
+  const { title, subject, paperType, easyCount, mediumCount, hardCount, mcqCount, shortCount, longCount } = req.body;
+
+  // 1. Basic Validation
+  if (!title || !subject) {
+    return res.status(400).json({ message: "Please provide Exam Title and Subject." });
+  }
+
+  // CLEAN INPUTS (Remove spaces)
+  const cleanSubject = subject.trim();
+  
+  // REGEX GENERATORS (Make searches case-insensitive)
+  // This matches "DBMS", "dbms", "Dbms " -> All work!
+  const subjectRegex = new RegExp(`^${cleanSubject}$`, "i"); 
+  
+  // Difficulty Regexes
+  const easyRegex = /^(easy|simple)$/i;       // Matches "Easy", "easy"
+  const mediumRegex = /^(medium|avg)$/i;      // Matches "Medium", "medium"
+  const hardRegex = /^(hard|difficult)$/i;    // Matches "Hard", "hard"
+  
+  // Type Regexes
+  const mcqRegex = /^mcq$/i;
+  const shortRegex = /^short$/i;
+  const longRegex = /^long$/i;
+
+  let questions = [];
 
   try {
-    const easyQ = await Question.aggregate([{ $match: { subject: subjectRegex, difficulty: "Easy" } }, { $sample: { size: Number(easyCount) } }]);
-    const mediumQ = await Question.aggregate([{ $match: { subject: subjectRegex, difficulty: "Medium" } }, { $sample: { size: Number(mediumCount) } }]);
-    const hardQ = await Question.aggregate([{ $match: { subject: subjectRegex, difficulty: "Hard" } }, { $sample: { size: Number(hardCount) } }]);
+    // --- MODE A: MCQ ONLY (Based on Difficulty) ---
+    if (paperType === "mcq_only") {
+      const easy = await Question.aggregate([
+        { $match: { subject: subjectRegex, questionType: mcqRegex, difficulty: easyRegex } },
+        { $sample: { size: Number(easyCount) || 0 } }
+      ]);
+      const medium = await Question.aggregate([
+        { $match: { subject: subjectRegex, questionType: mcqRegex, difficulty: mediumRegex } },
+        { $sample: { size: Number(mediumCount) || 0 } }
+      ]);
+      const hard = await Question.aggregate([
+        { $match: { subject: subjectRegex, questionType: mcqRegex, difficulty: hardRegex } },
+        { $sample: { size: Number(hardCount) || 0 } }
+      ]);
+      questions = [...easy, ...medium, ...hard];
+    }
 
-    const allQuestions = [...easyQ, ...mediumQ, ...hardQ];
+    // --- MODE B: SUBJECTIVE ONLY (Based on Length) ---
+    else if (paperType === "subjective_only") {
+      const shorts = await Question.aggregate([
+        { $match: { subject: subjectRegex, questionType: shortRegex } },
+        { $sample: { size: Number(shortCount) || 0 } }
+      ]);
+      const longs = await Question.aggregate([
+        { $match: { subject: subjectRegex, questionType: longRegex } },
+        { $sample: { size: Number(longCount) || 0 } }
+      ]);
+      questions = [...shorts, ...longs];
+    }
 
-    if(allQuestions.length === 0) return res.status(400).json({ message: "No questions found." });
+    // --- MODE C: MIXED (Standard Pattern) ---
+    else if (paperType === "mixed") {
+      const mcqs = await Question.aggregate([
+        { $match: { subject: subjectRegex, questionType: mcqRegex } },
+        { $sample: { size: Number(mcqCount) || 0 } }
+      ]);
+      const shorts = await Question.aggregate([
+        { $match: { subject: subjectRegex, questionType: shortRegex } },
+        { $sample: { size: Number(shortCount) || 0 } }
+      ]);
+      const longs = await Question.aggregate([
+        { $match: { subject: subjectRegex, questionType: longRegex } },
+        { $sample: { size: Number(longCount) || 0 } }
+      ]);
+      questions = [...mcqs, ...shorts, ...longs];
+    }
 
+    // --- FINAL CHECK ---
+    if (questions.length === 0) {
+      // DEBUGGING HELP:
+      console.log(`Failed to find questions for Subject: "${cleanSubject}"`);
+      return res.status(400).json({ message: "No questions found. Check if the Subject spelling matches your Excel sheet exactly." });
+    }
+
+    // Create the Exam
     const newExam = new Exam({
       title,
       subject: cleanSubject,
-      questions: allQuestions.map(q => q._id)
+      questions: questions.map(q => q._id),
+      isPublished: false 
     });
 
     await newExam.save();
-    res.status(201).json({ message: "Exam generated!", exam: newExam, totalQuestions: allQuestions.length });
+
+    res.status(201).json({ 
+      message: `Exam '${title}' created with ${questions.length} questions!`, 
+      exam: newExam,
+      totalQuestions: questions.length
+    });
 
   } catch (error) {
-    console.error("Generate Error:", error);
-    res.status(500).json({ message: "Server Error" });
+    console.error("Generator Error:", error);
+    res.status(500).json({ message: "Server error during generation." });
   }
 };
-
+// Helper Function
+async function createExamInDB(title, subject, questions) {
+    const newExam = new Exam({
+        title,
+        subject,
+        questions: questions.map(q => q._id)
+    });
+    await newExam.save();
+    return newExam;
+}
 // --- 5. GET EXAMS ---
 export const getExams = async (req, res) => {
     try {

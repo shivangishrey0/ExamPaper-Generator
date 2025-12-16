@@ -7,7 +7,7 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
 
   const handleForgot = async () => {
-    const res = await fetch("/api/user/forgot-password", {
+    const res = await fetch("/api/auth/forgot-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),

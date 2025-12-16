@@ -11,7 +11,7 @@ export default function ResetPassword() {
   const [msg, setMsg] = useState("");
 
   const handleReset = async () => {
-    const res = await fetch("/api/user/reset-password", {
+    const res = await fetch("/api/auth/reset-password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, otp, newPassword: newPass }),

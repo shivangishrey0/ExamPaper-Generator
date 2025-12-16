@@ -19,10 +19,17 @@ export default function AdminDashboard() {
   const [file, setFile] = useState(null);
 
   // 3. Exam Generator Data
+  // 3. Exam Generator Data (UPDATED FOR MIXED EXAMS)
   const [gData, setGData] = useState({
     title: "", 
     subject: "DBMS", 
-    easyCount: 0, mediumCount: 0, hardCount: 0
+    paperType: "mcq_only", // Default Mode
+    easyCount: 0,   // For MCQ Mode
+    mediumCount: 0, // For MCQ Mode
+    hardCount: 0,   // For MCQ Mode
+    mcqCount: 0,    // For Mixed Mode
+    shortCount: 0,  // For Subjective/Mixed Mode
+    longCount: 0    // For Subjective/Mixed Mode
   });
 
   // 4. AI Generator Data
@@ -106,24 +113,40 @@ export default function AdminDashboard() {
     }
   };
 
+  // --- MASTER EXAM GENERATOR HANDLER (UPDATED) ---
   const handleGenerate = async () => {
     if (!gData.title) return alert("Please enter an Exam Title");
+
+    // 1. Create a clean payload (Convert empty strings "" to 0)
+    const payload = {
+        ...gData,
+        easyCount: Number(gData.easyCount) || 0,
+        mediumCount: Number(gData.mediumCount) || 0,
+        hardCount: Number(gData.hardCount) || 0,
+        mcqCount: Number(gData.mcqCount) || 0,
+        shortCount: Number(gData.shortCount) || 0,
+        longCount: Number(gData.longCount) || 0,
+    };
 
     try {
       const res = await fetch("/api/admin/generate-paper", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(gData),
+        body: JSON.stringify(payload), // Send the cleaned payload
       });
       const data = await res.json();
+      
       if (res.ok) {
         alert(`Success! Exam created with ${data.totalQuestions} questions.`);
         fetchExams(); 
         setActiveTab("view"); 
       }
-      else alert(data.message);
+      else {
+        // Show specific error from backend
+        alert(`Generation Failed: ${data.message}`); 
+      }
     } catch (err) {
-      alert("Server Error");
+      alert("Server Error during generation request.");
     }
   };
 
@@ -329,27 +352,124 @@ export default function AdminDashboard() {
           )}
 
           {/* 4. GENERATE PAPER */}
-          {activeTab === "generate" && (
-            <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto border-t-4 border-blue-600">
-              <h2 className="text-2xl font-bold mb-6 text-blue-900">Auto-Generate Exam</h2>
-              <input placeholder="Exam Title (e.g., Mid-Term DBMS)" className="w-full border p-2 rounded mb-4" onChange={(e) => setGData({...gData, title: e.target.value})} />
-              
-              <select className="w-full border p-2 rounded mb-6" onChange={(e) => setGData({...gData, subject: e.target.value})}>
-                 <option value="DBMS">DBMS</option>
-                 <option value="Operating System">Operating System</option>
-                 <option value="Computer Networks">Computer Networks</option>
-                 <option value="Algorithms">Algorithms</option>
-                 <option value="Digital Logic">Digital Logic</option>
-              </select>
+          {/* 4. GENERATE EXAM PAPER */}
+{/* 4. MASTER EXAM GENERATOR */}
+{activeTab === "generate" && (
+<div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto border-t-4 border-blue-600">
+    <h2 className="text-2xl font-bold mb-4 text-blue-900">Auto-Generate Exam</h2>
+    
+    {/* Common Inputs */}
+    <div className="mb-6 grid grid-cols-2 gap-4">
+        <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Exam Title</label>
+            <input 
+                placeholder="e.g. Mid-Term 2024" 
+                className="w-full border p-2 rounded" 
+                onChange={(e) => setGData({...gData, title: e.target.value})} 
+            />
+        </div>
+        <div>
+            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Subject</label>
+            <select className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, subject: e.target.value})}>
+                <option value="DBMS">DBMS</option>
+                <option value="Operating System">Operating System</option>
+                <option value="Computer Networks">Computer Networks</option>
+                <option value="Algorithms">Algorithms</option>
+            </select>
+        </div>
+    </div>
 
-              <div className="space-y-4 mb-6">
-                <div className="flex justify-between items-center bg-green-50 p-3 rounded"><span>Easy Questions</span><input type="number" className="border w-20 p-1 rounded" onChange={(e) => setGData({...gData, easyCount: e.target.value})} /></div>
-                <div className="flex justify-between items-center bg-yellow-50 p-3 rounded"><span>Medium Questions</span><input type="number" className="border w-20 p-1 rounded" onChange={(e) => setGData({...gData, mediumCount: e.target.value})} /></div>
-                <div className="flex justify-between items-center bg-red-50 p-3 rounded"><span>Hard Questions</span><input type="number" className="border w-20 p-1 rounded" onChange={(e) => setGData({...gData, hardCount: e.target.value})} /></div>
-              </div>
-              <button onClick={handleGenerate} className="w-full bg-blue-600 text-white py-3 rounded font-bold hover:bg-blue-500 shadow-lg">Generate & Publish Exam</button>
+    {/* --- PAPER TYPE SELECTOR --- */}
+    <div className="mb-6">
+        <label className="block text-sm font-bold text-gray-700 mb-2">Select Paper Pattern:</label>
+        <div className="grid grid-cols-3 gap-2">
+            <button 
+                onClick={() => setGData({...gData, paperType: "mcq_only"})}
+                className={`p-2 rounded border text-sm font-bold ${gData.paperType === "mcq_only" ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-600"}`}
+            >
+                🔵 MCQ Only
+            </button>
+            <button 
+                onClick={() => setGData({...gData, paperType: "subjective_only"})}
+                className={`p-2 rounded border text-sm font-bold ${gData.paperType === "subjective_only" ? "bg-orange-500 text-white border-orange-500" : "bg-gray-50 text-gray-600"}`}
+            >
+                🟠 Subjective Only
+            </button>
+            <button 
+                onClick={() => setGData({...gData, paperType: "mixed"})}
+                className={`p-2 rounded border text-sm font-bold ${gData.paperType === "mixed" ? "bg-purple-600 text-white border-purple-600" : "bg-gray-50 text-gray-600"}`}
+            >
+                🟣 Mixed Paper
+            </button>
+        </div>
+    </div>
+
+    {/* --- DYNAMIC INPUTS BASED ON SELECTION --- */}
+    
+    {/* SCENARIO 1: MCQ ONLY (Difficulty Based) */}
+    {gData.paperType === "mcq_only" && (
+        <div className="bg-blue-50 p-4 rounded border border-blue-100 mb-6 animate-fade-in">
+            <h3 className="text-blue-900 font-bold mb-3 text-sm uppercase">MCQ Configuration</h3>
+            <div className="grid grid-cols-3 gap-4">
+                <div>
+                    <label className="text-xs text-gray-500 font-bold">Easy Qs</label>
+                    <input type="number" className="w-full border p-2 rounded" placeholder="0" onChange={(e) => setGData({...gData, easyCount: e.target.value})} />
+                </div>
+                <div>
+                    <label className="text-xs text-gray-500 font-bold">Medium Qs</label>
+                    <input type="number" className="w-full border p-2 rounded" placeholder="0" onChange={(e) => setGData({...gData, mediumCount: e.target.value})} />
+                </div>
+                <div>
+                    <label className="text-xs text-gray-500 font-bold">Hard Qs</label>
+                    <input type="number" className="w-full border p-2 rounded" placeholder="0" onChange={(e) => setGData({...gData, hardCount: e.target.value})} />
+                </div>
             </div>
-          )}
+        </div>
+    )}
+
+    {/* SCENARIO 2: SUBJECTIVE ONLY (Length Based) */}
+    {gData.paperType === "subjective_only" && (
+        <div className="bg-orange-50 p-4 rounded border border-orange-100 mb-6 animate-fade-in">
+            <h3 className="text-orange-900 font-bold mb-3 text-sm uppercase">Theory Configuration</h3>
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="text-xs text-gray-500 font-bold">Short Answer Qs</label>
+                    <input type="number" className="w-full border p-2 rounded" placeholder="0" onChange={(e) => setGData({...gData, shortCount: e.target.value})} />
+                </div>
+                <div>
+                    <label className="text-xs text-gray-500 font-bold">Long Answer Qs</label>
+                    <input type="number" className="w-full border p-2 rounded" placeholder="0" onChange={(e) => setGData({...gData, longCount: e.target.value})} />
+                </div>
+            </div>
+        </div>
+    )}
+
+    {/* SCENARIO 3: MIXED (Format Based) */}
+    {gData.paperType === "mixed" && (
+        <div className="bg-purple-50 p-4 rounded border border-purple-100 mb-6 animate-fade-in">
+            <h3 className="text-purple-900 font-bold mb-3 text-sm uppercase">Mixed Paper Configuration</h3>
+            <div className="grid grid-cols-3 gap-4">
+                <div>
+                    <label className="text-xs text-gray-500 font-bold">Total MCQs</label>
+                    <input type="number" className="w-full border p-2 rounded" placeholder="0" onChange={(e) => setGData({...gData, mcqCount: e.target.value})} />
+                </div>
+                <div>
+                    <label className="text-xs text-gray-500 font-bold">Short Ans</label>
+                    <input type="number" className="w-full border p-2 rounded" placeholder="0" onChange={(e) => setGData({...gData, shortCount: e.target.value})} />
+                </div>
+                <div>
+                    <label className="text-xs text-gray-500 font-bold">Long Ans</label>
+                    <input type="number" className="w-full border p-2 rounded" placeholder="0" onChange={(e) => setGData({...gData, longCount: e.target.value})} />
+                </div>
+            </div>
+        </div>
+    )}
+
+    <button onClick={handleGenerate} className="w-full bg-blue-900 text-white py-3 rounded font-bold hover:bg-blue-800 shadow-lg transition transform hover:scale-[1.02]">
+        ⚡ Generate Paper
+    </button>
+</div>
+)}
           
            {/* 5. VIEW EXAMS */}
            {activeTab === "view" && (

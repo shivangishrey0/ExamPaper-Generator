@@ -15,10 +15,22 @@ export const registerStart = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = generateOTP();
-    const user = new User({ username, email, password: hashedPassword, otp, otpExpiry: otpExpiry() });
+    
+    // Save user with OTP
+    const user = new User({ 
+        username, 
+        email, 
+        password: hashedPassword, 
+        otp, 
+        otpExpiry: otpExpiry() 
+    });
+    
     await user.save();
-    await sendMail(email, "Your OTP", `<p>OTP: ${otp}</p>`);
-    res.json({ message: "OTP sent" });
+    
+    // Send Email
+    await sendMail(email, "Verify Your Account", `<p>Your verification OTP is: <b>${otp}</b></p>`);
+    
+    res.json({ message: "OTP sent successfully" });
   } catch (err) {
     console.error("Register Error:", err);
     res.status(500).json({ message: "Server error" });
@@ -30,52 +42,46 @@ export const verifyEmail = async (req, res) => {
   try {
     const { email, otp } = req.body;
     const user = await User.findOne({ email });
-    if (!user || user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
-    user.isVerified = true; user.otp = undefined;
+    
+    // Check if user exists and OTP matches
+    if (!user) return res.status(400).json({ message: "User not found" });
+    if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    
+    // Optional: Check if OTP is expired (if you have expiry logic in DB)
+    if (user.otpExpiry && user.otpExpiry < Date.now()) {
+        return res.status(400).json({ message: "OTP has expired" });
+    }
+
+    user.isVerified = true; 
+    user.otp = undefined; // Clear OTP after use
+    user.otpExpiry = undefined;
     await user.save();
-    res.json({ message: "Verified" });
-  } catch(err) { res.status(500).json({message: "Server Error"}); }
+    
+    res.json({ message: "Email Verified Successfully" });
+  } catch(err) { 
+      console.error(err);
+      res.status(500).json({message: "Server Error"}); 
+  }
 };
 
-// --- LOGIN (DEBUG VERSION) ---
+// --- LOGIN ---
 export const login = async (req, res) => {
-  console.log("🔥 1. Login Request Received for:", req.body.email);
-
   try {
     const { email, password } = req.body;
 
-    // Step 1: Database Check
-    console.log("🔥 2. Searching Database...");
     const user = await User.findOne({ email });
-    
-    if (!user) {
-        console.log("❌ User Not Found in DB");
-        return res.status(400).json({ message: "User not found" });
-    }
-    console.log("✅ User Found:", user.username);
+    if (!user) return res.status(400).json({ message: "User not found" });
 
-    // Step 2: Verify Check
     if (!user.isVerified) {
-        console.log("❌ User Not Verified");
         return res.status(400).json({ message: "Email not verified" });
     }
 
-    // Step 3: Password Check
-    console.log("🔥 3. Checking Password...");
     const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-        console.log("❌ Password Wrong");
-        return res.status(400).json({ message: "Incorrect password" });
-    }
-    console.log("✅ Password Correct");
+    if (!match) return res.status(400).json({ message: "Incorrect password" });
 
-    // Step 4: Token Generation
-    console.log("🔥 4. Generating Token...");
     const secret = process.env.JWT_SECRET || "fallback_secret";
     const token = jwt.sign({ id: user._id }, secret, { expiresIn: "7d" });
 
-    // Step 5: Send Response
-    console.log("🔥 5. Sending Success Response...");
     return res.status(200).json({ 
       message: "Login successful",
       result: user, 
@@ -85,43 +91,95 @@ export const login = async (req, res) => {
     });
 
   } catch (error) {
-    // THIS IS WHAT WE NEED TO SEE
-    console.error("☠️ CRITICAL SERVER CRASH:", error);
-    return res.status(500).json({ message: "Server Error: " + error.message });
+    console.error("Login Error:", error);
+    return res.status(500).json({ message: "Server Error" });
   }
 };
 
-// --- FORGOT PASSWORD ---
+// --- FORGOT PASSWORD (FIXED) ---
 export const forgotPassword = async (req, res) => {
-    // Keep your existing logic or placeholders
-    res.json({ message: "Forgot Password endpoint" });
+  try {
+    const { email } = req.body;
+    console.log("Forgot Password requested for:", email);
+
+    // 1. Check if user exists
+    const user = await User.findOne({ email });
+    if (!user) {
+        return res.status(404).json({ message: "User with this email does not exist" });
+    }
+
+    // 2. Generate New OTP
+    const otp = generateOTP();
+    user.otp = otp;
+    user.otpExpiry = otpExpiry(); // Set expiry (e.g., 10 mins from now)
+    await user.save();
+
+    // 3. Send Email
+    await sendMail(email, "Reset Password Request", `
+      <h3>Password Reset</h3>
+      <p>You requested to reset your password.</p>
+      <p>Your OTP is: <b style="font-size: 20px;">${otp}</b></p>
+      <p>This OTP is valid for 10 minutes.</p>
+    `);
+
+    res.json({ message: "OTP sent to your email" });
+
+  } catch (error) {
+    console.error("Forgot Password Error:", error);
+    res.status(500).json({ message: "Error sending email" });
+  }
 };
 
-// --- RESET PASSWORD ---
+// --- RESET PASSWORD (FIXED) ---
 export const resetPassword = async (req, res) => {
-    res.json({ message: "Reset Password endpoint" });
+  try {
+    const { email, otp, newPassword } = req.body;
+
+    // 1. Find User
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // 2. Verify OTP
+    if (user.otp !== otp) {
+        return res.status(400).json({ message: "Invalid OTP" });
+    }
+
+    // 3. Check Expiry
+    if (user.otpExpiry && user.otpExpiry < Date.now()) {
+        return res.status(400).json({ message: "OTP Expired. Please request a new one." });
+    }
+
+    // 4. Hash New Password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    // 5. Update User
+    user.password = hashedPassword;
+    user.otp = undefined;       // Clear OTP
+    user.otpExpiry = undefined; // Clear Expiry
+    await user.save();
+
+    res.json({ message: "Password reset successful. You can now login." });
+
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
 };
 
 // --- GET EXAMS ---
-// --- SMART GET EXAMS (Checks if student attempted) ---
 export const getAvailableExams = async (req, res) => {
   try {
     const { studentId } = req.query; 
-
-    // 1. Get ONLY Published Exams
     const exams = await Exam.find({ isPublished: true }).sort({ createdAt: -1 });
 
-    // 2. If no student ID, return list with default status
     if (!studentId) {
         const cleanExams = exams.map(e => ({ ...e.toObject(), status: "not_attempted" }));
         return res.json(cleanExams);
     }
 
-    // 3. Check Submissions safely
     const examsWithStatus = await Promise.all(exams.map(async (exam) => {
       try {
         const submission = await Submission.findOne({ examId: exam._id, studentId });
-        
         let status = "not_attempted";
         let score = null;
 
@@ -129,23 +187,19 @@ export const getAvailableExams = async (req, res) => {
           status = submission.isGraded ? "graded" : "submitted";
           score = submission.score;
         }
-
-        // ✅ FIXED LINE BELOW (Removed the underscore)
         return { ...exam.toObject(), status, score };
-        
       } catch (err) {
-        console.error(`Error checking submission for exam ${exam._id}:`, err);
         return { ...exam.toObject(), status: "not_attempted" };
       }
     }));
 
     res.json(examsWithStatus);
-
   } catch (error) {
-    console.error("❌ Critical Error in getAvailableExams:", error);
+    console.error("Error fetching exams:", error);
     res.status(500).json({ message: "Server error fetching exams" });
   }
 };
+
 // --- GET SINGLE EXAM ---
 export const getExamById = async (req, res) => {
   try {
@@ -163,11 +217,13 @@ export const submitExam = async (req, res) => {
   try {
     const exam = await Exam.findById(examId);
     if (!exam) return res.status(404).json({ message: "Exam not found" });
+    
     const existingSubmission = await Submission.findOne({ examId, studentId });
     if (existingSubmission) return res.status(400).json({ message: "Already submitted." });
 
     const newSubmission = new Submission({ examId, studentId, answers, isGraded: false });
     await newSubmission.save();
+    
     res.json({ message: "Exam submitted successfully!" });
   } catch (error) {
     console.error("Submit Error:", error);
