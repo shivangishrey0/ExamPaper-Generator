@@ -10,7 +10,7 @@ export default function VerifyOTP() {
   const [msg, setMsg] = useState("");
 
   const handleVerify = async () => {
-    const res = await fetch("/api/user/verify-email", {
+    const res = await fetch("/api/auth/verify-email", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, otp }),

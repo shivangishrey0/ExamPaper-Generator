@@ -9,7 +9,7 @@ export default function Register() {
   const [msg, setMsg] = useState("");
 
   const handleRegister = async () => {
-    const res = await fetch("/api/user/register-start", {
+    const res = await fetch("/api/auth/register-start", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, email, password }),
