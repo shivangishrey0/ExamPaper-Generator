@@ -12,7 +12,7 @@ import {
   gradeSubmission,
   generateQuestionsAI,
   deleteExam,
-  deleteAllQuestions 
+  deleteAllQuestions // <--- ADDED THIS IMPORT
 } from "../controllers/adminController.js";
 
 const router = express.Router();
@@ -24,20 +24,20 @@ const upload = multer({ dest: "uploads/" });
 router.post("/login", adminLogin);
 
 // --- QUESTION MANAGEMENT ---
-router.post("/add-question", addQuestion); // Manual Add
-router.post("/upload-questions", upload.single("file"), uploadQuestions); // Bulk Upload
-router.post("/generate-ai-questions", generateQuestionsAI); // ✨ AI Generator
-router.delete("/delete-all-questions", deleteAllQuestions); // ⚠️ Clear Entire Database
+router.post("/add-question", addQuestion); 
+router.post("/upload-questions", upload.single("file"), uploadQuestions); 
+router.post("/generate-ai-questions", generateQuestionsAI); 
+router.delete("/delete-all-questions", deleteAllQuestions); // <--- ADDED THIS ROUTE
 
 // --- EXAM MANAGEMENT ---
-router.post("/generate-paper", generatePaper); // Create Exam Logic
-router.get("/get-exams", getExams); // List all exams
-router.get("/exam/:id", getExamById); // View single exam
-router.delete("/exam/:id", deleteExam); // 🗑️ Delete Exam & its questions
+router.post("/generate-paper", generatePaper); 
+router.get("/get-exams", getExams); 
+router.get("/exam/:id", getExamById); 
+router.delete("/exam/:id", deleteExam); 
 
 // --- PUBLISH & GRADING ---
-router.put("/publish/:id", publishExam); // Make Live
-router.get("/submissions/:examId", getSubmissions); // View Student Results
-router.post("/grade-paper", gradeSubmission); // Assign Score
+router.put("/publish/:id", publishExam); 
+router.get("/submissions/:examId", getSubmissions); 
+router.post("/grade-paper", gradeSubmission); 
 
 export default router;
