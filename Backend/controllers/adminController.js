@@ -2,7 +2,7 @@ import Question from "../models/Questions.js";
 import Exam from "../models/Exam.js";
 import xlsx from "xlsx";
 import fs from "fs";
-import Submission from "../models/Submission.js";
+import Submission from "../models/submission.js";
 import { GoogleGenerativeAI } from "@google/generative-ai"; 
 import dotenv from "dotenv";
 
@@ -20,11 +20,39 @@ export const adminLogin = (req, res) => {
 // --- 2. ADD QUESTION MANUALLY ---
 export const addQuestion = async (req, res) => {
   try {
+    console.log("Add Question Request Body:", req.body);
+    
+    // Validation
+    const { questionText, subject, difficulty, correctAnswer } = req.body;
+    
+    if (!questionText || !questionText.trim()) {
+      return res.status(400).json({ message: "Question text is required" });
+    }
+    if (!subject) {
+      return res.status(400).json({ message: "Subject is required" });
+    }
+    if (!difficulty) {
+      return res.status(400).json({ message: "Difficulty is required" });
+    }
+    if (!correctAnswer || !correctAnswer.trim()) {
+      return res.status(400).json({ message: "Correct answer is required" });
+    }
+    
     const newQuestion = new Question(req.body);
     await newQuestion.save();
-    res.status(201).json({ message: "Question added successfully!" });
+    
+    console.log("Question added successfully:", newQuestion._id);
+    res.status(201).json({ message: "Question added successfully!", question: newQuestion });
   } catch (error) {
-    res.status(500).json({ message: "Error adding question", error });
+    console.error("Add Question Error:", error);
+    
+    // Handle validation errors
+    if (error.name === "ValidationError") {
+      const errors = Object.values(error.errors).map(e => e.message);
+      return res.status(400).json({ message: errors.join(", ") });
+    }
+    
+    res.status(500).json({ message: "Error adding question: " + error.message });
   }
 };
 
@@ -84,7 +112,18 @@ export const uploadQuestions = async (req, res) => {
       };
     });
 
-    const validQuestions = questionsToInsert.filter(q => q.questionText && q.subject);
+    // Accept subjective questions even when CorrectAnswer is blank.
+    const validQuestions = questionsToInsert.filter(q => {
+      const hasBasics = q.questionText && q.subject;
+      if (!hasBasics) return false;
+
+      if (q.questionType === "mcq") {
+        // MCQ needs a correct answer
+        return Boolean(q.correctAnswer);
+      }
+      // Subjective (short/long) allowed without correctAnswer
+      return true;
+    });
 
     if (validQuestions.length === 0) {
       return res.status(400).json({ message: "No valid questions found." });
@@ -217,7 +256,7 @@ export const deleteExam = async (req, res) => {
 };
 
 // --- 11. DELETE ALL QUESTIONS (THE NEW FEATURE) ---
-export const deleteAllQuestions = async (req, res) => {
+ export const deleteAllQuestions = async (req, res) => {
   try {
     await Question.deleteMany({});
     res.json({ message: "All questions deleted!" });

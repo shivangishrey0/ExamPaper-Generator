@@ -1,0 +1,20 @@
+QuestionText,Subject,Difficulty,QuestionType,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Section
+What is a Database Management System?,DBMS,Easy,mcq,A software for managing databases,A hardware component,An operating system,A programming language,OptionA,Section A
+Which of the following is a type of database model?,DBMS,Easy,mcq,Relational,Functional,Procedural,Sequential,OptionA,Section A
+What does SQL stand for?,DBMS,Easy,mcq,Structured Query Language,Simple Query Language,Standard Query Language,System Query Language,OptionA,Section A
+Define normalization and explain its purpose in database design.,DBMS,Medium,short,,,,,Normalization is the process of organizing data to minimize redundancy. It divides larger tables into smaller ones and defines relationships between them. Purpose: Eliminate data redundancy and improve data integrity.,Section B
+What is a primary key? Give an example.,DBMS,Medium,short,,,,,A primary key is a unique identifier for a record in a table. Example: StudentID in a Student table where each student has a unique ID.,Section B
+Explain the concept of ACID properties in database transactions.,DBMS,Medium,short,,,,,ACID stands for Atomicity Consistency Isolation Durability. These properties ensure reliable transaction processing in databases.,Section B
+What is the difference between DELETE and TRUNCATE commands?,DBMS,Medium,mcq,DELETE removes rows one by one and can be rolled back,TRUNCATE removes all rows at once and cannot be rolled back,Both are same,DELETE is faster than TRUNCATE,OptionB,Section A
+Which normal form eliminates transitive dependency?,DBMS,Hard,mcq,First Normal Form,Second Normal Form,Third Normal Form,Boyce-Codd Normal Form,OptionC,Section A
+Describe in detail the differences between DBMS and RDBMS with examples. Explain their advantages and disadvantages.,DBMS,Hard,long,,,,,DBMS (Database Management System) is software that manages databases but doesn't enforce relationships between tables. Examples: File systems Microsoft Access. RDBMS (Relational Database Management System) organizes data in tables with defined relationships and enforces referential integrity. Examples: MySQL PostgreSQL Oracle. Advantages of RDBMS: Data integrity through constraints Support for complex queries Better for large-scale applications ACID compliance. Disadvantages: More complex to set up Higher resource requirements. DBMS advantages: Simpler Faster for small applications. DBMS disadvantages: No relationship enforcement Data redundancy issues.,Section C
+Explain deadlock in DBMS. What are the necessary conditions for deadlock? How can deadlocks be prevented and resolved? Provide real-world examples.,DBMS,Hard,long,,,,,A deadlock occurs when two or more transactions wait indefinitely for each other to release locks. Necessary conditions (Coffman conditions): 1. Mutual Exclusion - Resources cannot be shared 2. Hold and Wait - Processes hold resources while waiting for others 3. No Preemption - Resources cannot be forcibly taken 4. Circular Wait - A circular chain of processes exists. Prevention methods: Use timeout mechanisms Implement deadlock detection algorithms Use resource ordering Implement two-phase locking. Resolution methods: Kill one of the transactions Rollback and restart Wait-die or wound-wait schemes. Real-world example: In a banking system Transaction A locks Account 1 and waits for Account 2 while Transaction B locks Account 2 and waits for Account 1 creating a deadlock. Solution: Use timestamp ordering or timeout mechanisms.,Section C
+What is indexing in databases?,DBMS,Easy,mcq,A technique to speed up data retrieval,A method to backup data,A way to encrypt data,A type of database,OptionA,Section A
+Which SQL command is used to retrieve data?,DBMS,Easy,mcq,SELECT,GET,RETRIEVE,FETCH,OptionA,Section A
+
+
+
+
+
+
+

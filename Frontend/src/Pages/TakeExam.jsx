@@ -144,36 +144,69 @@ export default function TakeExam() {
           <div className="space-y-8 pb-20">
             {exam.questions.map((q, index) => (
               <div key={q._id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <p className="font-semibold text-lg mb-4 text-gray-800">
-                  <span className="text-blue-600 mr-2">Q{index + 1}.</span> {q.questionText}
-                </p>
-                
-                {/* 👇 FIXED OPTIONS MAPPING 👇 */}
-                <div className="space-y-2 pl-4">
-                  {q.options.map((opt, i) => {
-                    // Generate Key: OptionA, OptionB, OptionC...
-                    const optionLabel = String.fromCharCode(65 + i); // 0->A, 1->B
-                    const optionKey = `Option${optionLabel}`; 
-                    
-                    return (
-                      <label key={i} className={`flex items-center p-3 rounded border cursor-pointer hover:bg-blue-50 transition ${answers[q._id] === optionKey ? "bg-blue-100 border-blue-500 ring-1 ring-blue-500" : "border-gray-200"}`}>
-                        <input 
-                          type="radio" 
-                          name={q._id} 
-                          // Send "OptionA" to backend
-                          value={optionKey} 
-                          checked={answers[q._id] === optionKey}
-                          onChange={() => setAnswers({...answers, [q._id]: optionKey})}
-                          className="w-4 h-4 text-blue-600 mr-3"
-                        />
-                        {/* Show "A) Text" to student */}
-                        <span className="font-bold mr-2 text-gray-400">({optionLabel})</span>
-                        {opt} 
-                      </label>
-                    );
-                  })}
+                <div className="flex justify-between items-start mb-4">
+                  <p className="font-semibold text-lg text-gray-800 flex-1">
+                    <span className="text-blue-600 mr-2">Q{index + 1}.</span> {q.questionText}
+                  </p>
+                  {/* Question Type Badge */}
+                  <span className={`px-2 py-1 rounded text-xs font-bold ml-2 whitespace-nowrap
+                    ${q.questionType === 'mcq' ? 'bg-blue-100 text-blue-700' : 
+                      q.questionType === 'short' ? 'bg-purple-100 text-purple-700' : 
+                      'bg-indigo-100 text-indigo-700'}`}>
+                    {q.questionType === 'mcq' ? 'MCQ' : q.questionType === 'short' ? 'Short Answer' : 'Long Answer'}
+                  </span>
                 </div>
-                {/* 👆 END FIX 👆 */}
+                
+                {/* MCQ Options */}
+                {q.questionType === 'mcq' && q.options && q.options.length > 0 && (
+                  <div className="space-y-2 pl-4">
+                    {q.options.map((opt, i) => {
+                      const optionLabel = String.fromCharCode(65 + i);
+                      const optionKey = `Option${optionLabel}`; 
+                      
+                      return (
+                        <label key={i} className={`flex items-center p-3 rounded border cursor-pointer hover:bg-blue-50 transition ${answers[q._id] === optionKey ? "bg-blue-100 border-blue-500 ring-1 ring-blue-500" : "border-gray-200"}`}>
+                          <input 
+                            type="radio" 
+                            name={q._id} 
+                            value={optionKey} 
+                            checked={answers[q._id] === optionKey}
+                            onChange={() => setAnswers({...answers, [q._id]: optionKey})}
+                            className="w-4 h-4 text-blue-600 mr-3"
+                          />
+                          <span className="font-bold mr-2 text-gray-400">({optionLabel})</span>
+                          {opt} 
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Short Answer Text Area */}
+                {q.questionType === 'short' && (
+                  <div className="pl-4">
+                    <textarea
+                      placeholder="Type your answer here (2-3 lines recommended)"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none resize-none"
+                      rows="3"
+                      value={answers[q._id] || ''}
+                      onChange={(e) => setAnswers({...answers, [q._id]: e.target.value})}
+                    />
+                  </div>
+                )}
+
+                {/* Long Answer Text Area */}
+                {q.questionType === 'long' && (
+                  <div className="pl-4">
+                    <textarea
+                      placeholder="Write a detailed answer here (elaborate explanation expected)"
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-y"
+                      rows="8"
+                      value={answers[q._id] || ''}
+                      onChange={(e) => setAnswers({...answers, [q._id]: e.target.value})}
+                    />
+                  </div>
+                )}
 
               </div>
             ))}

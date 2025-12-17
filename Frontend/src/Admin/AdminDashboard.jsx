@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("add"); 
+  const API_BASE = "http://localhost:5000/api/admin";
   
   // --- STATES ---
   const [qData, setQData] = useState({
@@ -23,16 +24,47 @@ export default function AdminDashboard() {
   // --- HANDLERS ---
 
   const handleAddQuestion = async () => {
-    const payload = { ...qData, options: [qData.option1, qData.option2, qData.option3, qData.option4] };
+    // Validation
+    if (!qData.questionText.trim()) {
+      return alert("Please enter question text");
+    }
+    if (!qData.correctAnswer.trim()) {
+      return alert("Please enter correct answer");
+    }
+
+    const payload = {
+      questionText: qData.questionText,
+      subject: qData.subject,
+      difficulty: qData.difficulty,
+      correctAnswer: qData.correctAnswer,
+      options: [qData.option1, qData.option2, qData.option3, qData.option4].filter(opt => opt.trim()),
+      questionType: "mcq"
+    };
     try {
-      const res = await fetch("/api/admin/add-question", {
+      const res = await fetch(`${API_BASE}/add-question`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (res.ok) alert("Question Added!");
-      else alert("Failed to add question");
-    } catch (err) { alert("Server Error"); }
+      
+      const data = await res.json();
+      
+      if (res.ok) {
+        alert("Question Added Successfully!");
+        // Reset form
+        setQData({
+          questionText: "", 
+          subject: "DBMS", 
+          difficulty: "Easy", 
+          option1: "", option2: "", option3: "", option4: "", correctAnswer: ""
+        });
+      } else {
+        alert("Failed: " + (data.message || JSON.stringify(data)));
+      }
+    } catch (err) {
+      console.error("Add Question Error:", err);
+      alert("Server Error: " + err.message);
+    }
   };
 
   const handleFileUpload = async () => {
@@ -40,7 +72,10 @@ export default function AdminDashboard() {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch("/api/admin/upload-questions", { method: "POST", body: formData });
+      const res = await fetch(`${API_BASE}/upload-questions`, {
+        method: "POST",
+        body: formData,
+      });
       const data = await res.json();
       if (res.ok) { alert(data.message); setFile(null); } 
       else { alert("Upload Failed: " + data.message); }
@@ -51,7 +86,7 @@ export default function AdminDashboard() {
     if(!aiData.topic) return alert("Please enter a topic!");
     setAiLoading(true);
     try {
-        const res = await fetch("/api/admin/generate-ai-questions", {
+        const res = await fetch(`${API_BASE}/generate-ai-questions`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(aiData),
@@ -74,7 +109,7 @@ export default function AdminDashboard() {
         longCount: Number(gData.longCount) || 0,
     };
     try {
-      const res = await fetch("/api/admin/generate-paper", {
+      const res = await fetch(`${API_BASE}/generate-paper`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload), 
@@ -88,26 +123,48 @@ export default function AdminDashboard() {
   const handleDeleteExam = async (examId) => {
     if (!window.confirm("⚠️ Are you sure? This will delete the Exam AND its Questions. This action cannot be undone.")) return;
     try {
-      const res = await fetch(`/api/admin/exam/${examId}`, { method: "DELETE" });
-      if (res.ok) { alert("Exam and Questions deleted successfully!"); setExams(exams.filter((e) => e._id !== examId)); } 
-      else { alert("Failed to delete exam"); }
-    } catch (error) { alert("Server error"); }
+      const res = await fetch(`${API_BASE}/exam/${examId}`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        alert("Exam and Questions deleted successfully!");
+        setExams(exams.filter((e) => e._id !== examId));
+      } else {
+        alert("Failed to delete exam");
+      }
+    } catch (error) {
+      alert("Server error");
+    }
   };
 
   // --- CLEAR ENTIRE DATABASE HANDLER ---
   const handleClearDatabase = async () => {
     if (!window.confirm("⚠️ DANGER: This will delete EVERY question in your database. Are you sure?")) return;
     try {
-      const res = await fetch("/api/admin/delete-all-questions", { method: "DELETE" });
-      const data = await res.json();
-      if (res.ok) { alert("Database Cleared! All questions are gone."); window.location.reload(); } 
-      else { alert("Failed to clear database: " + (data.message || "Unknown error")); }
-    } catch (error) { alert("Server error"); }
+      const res = await fetch(`${API_BASE}/delete-all-questions`, {
+        method: "DELETE",
+      });
+
+      if (res.ok) {
+        alert("Database Cleared! All questions are gone.");
+        window.location.reload();
+      } else {
+        alert("Failed to clear database");
+      }
+    } catch (error) {
+      alert("Server error");
+    }
   };
 
   const fetchExams = async () => {
-      try { const res = await fetch("/api/admin/get-exams"); const data = await res.json(); setExams(data); } 
-      catch (err) { console.error("Error fetching exams"); }
+      try {
+        const res = await fetch(`${API_BASE}/get-exams`);
+        const data = await res.json();
+        setExams(data);
+      } catch (err) {
+        console.error("Error fetching exams");
+      }
   };
 
   useEffect(() => { if(activeTab === 'view') fetchExams(); }, [activeTab]);
@@ -167,14 +224,44 @@ export default function AdminDashboard() {
                   <option>Easy</option><option>Medium</option><option>Hard</option>
                 </select>
               </div>
-              <textarea placeholder="Enter Question Text" className="w-full border p-2 rounded mb-4 h-24" onChange={(e) => setQData({...qData, questionText: e.target.value})}></textarea>
+              <textarea 
+                placeholder="Enter Question Text" 
+                className="w-full border p-2 rounded mb-4 h-24" 
+                value={qData.questionText}
+                onChange={(e) => setQData({...qData, questionText: e.target.value})}
+              ></textarea>
               <div className="grid grid-cols-2 gap-4 mb-4">
-                <input placeholder="Option A" className="border p-2 rounded" onChange={(e) => setQData({...qData, option1: e.target.value})} />
-                <input placeholder="Option B" className="border p-2 rounded" onChange={(e) => setQData({...qData, option2: e.target.value})} />
-                <input placeholder="Option C" className="border p-2 rounded" onChange={(e) => setQData({...qData, option3: e.target.value})} />
-                <input placeholder="Option D" className="border p-2 rounded" onChange={(e) => setQData({...qData, option4: e.target.value})} />
+                <input 
+                  placeholder="Option A" 
+                  className="border p-2 rounded" 
+                  value={qData.option1}
+                  onChange={(e) => setQData({...qData, option1: e.target.value})} 
+                />
+                <input 
+                  placeholder="Option B" 
+                  className="border p-2 rounded" 
+                  value={qData.option2}
+                  onChange={(e) => setQData({...qData, option2: e.target.value})} 
+                />
+                <input 
+                  placeholder="Option C" 
+                  className="border p-2 rounded" 
+                  value={qData.option3}
+                  onChange={(e) => setQData({...qData, option3: e.target.value})} 
+                />
+                <input 
+                  placeholder="Option D" 
+                  className="border p-2 rounded" 
+                  value={qData.option4}
+                  onChange={(e) => setQData({...qData, option4: e.target.value})} 
+                />
               </div>
-              <input placeholder="Correct Answer" className="w-full border p-2 rounded mb-6 bg-green-50" onChange={(e) => setQData({...qData, correctAnswer: e.target.value})} />
+              <input 
+                placeholder="Correct Answer" 
+                className="w-full border p-2 rounded mb-6 bg-green-50" 
+                value={qData.correctAnswer}
+                onChange={(e) => setQData({...qData, correctAnswer: e.target.value})} 
+              />
               <button onClick={handleAddQuestion} className="w-full bg-blue-900 text-white py-3 rounded font-bold hover:bg-blue-800">Save Question</button>
             </div>
           )}
@@ -232,23 +319,70 @@ export default function AdminDashboard() {
             </div>
           )}
           
-          {/* 5. VIEW EXAMS */}
-          {activeTab === "view" && (
-            <div className="grid gap-4 pb-20">
-                {exams.length === 0 && <p className="text-gray-500 text-center mt-10">No exams generated yet.</p>}
-                {exams.map((exam) => (
-                    <div key={exam._id} className="bg-white p-4 rounded shadow border-l-4 border-blue-900 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex-1"><h3 className="font-bold text-lg text-gray-800">{exam.title}</h3><div className="flex items-center gap-2 mt-1"><span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold uppercase">{exam.subject}</span>{exam.isPublished ? (<span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">LIVE ✅</span>) : (<span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Draft 🔒</span>)}<span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">{exam.questions?.length || 0} Qs</span></div></div>
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => navigate(`/admin/view-exam/${exam._id}`)} className="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-sm font-bold shadow-sm">View</button>
-                          <button onClick={() => navigate(`/admin/check-paper/${exam._id}`)} className="bg-yellow-500 text-white px-3 py-1.5 rounded hover:bg-yellow-600 text-sm font-bold shadow-sm">Results 📊</button>
-                          <button onClick={() => handleDeleteExam(exam._id)} className="bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 text-sm font-bold shadow-sm">Delete 🗑️</button>
-                          {!exam.isPublished && (<button onClick={async () => { if(!confirm("Are you sure? Students will be able to see this exam.")) return; const res = await fetch(`/api/admin/publish/${exam._id}`, { method: "PUT" }); if(res.ok) { alert("Exam Published Successfully!"); fetchExams(); }}} className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm font-bold shadow-sm">Publish 🚀</button>)}
-                        </div>
-                    </div>
-                ))}
-            </div>
-          )}
+           {/* 5. VIEW EXAMS */}
+           {activeTab === "view" && (
+             <div className="grid gap-4 pb-20">
+                 {exams.length === 0 && <p className="text-gray-500 text-center mt-10">No exams generated yet.</p>}
+                 {exams.map((exam) => (
+                     <div key={exam._id} className="bg-white p-4 rounded shadow border-l-4 border-blue-900 flex flex-col md:flex-row justify-between items-center gap-4">
+                         
+                         {/* Exam Info */}
+                         <div className="flex-1">
+                            <h3 className="font-bold text-lg text-gray-800">{exam.title}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold uppercase">{exam.subject}</span>
+                                {exam.isPublished ? (
+                                   <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-bold">LIVE ✅</span>
+                                ) : (
+                                   <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">Draft 🔒</span>
+                                )}
+                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded font-bold">{exam.questions?.length || 0} Qs</span>
+                            </div>
+                         </div>
+                         
+                         {/* Action Buttons */}
+                         <div className="flex items-center gap-2">
+                            <button 
+                              onClick={() => navigate(`/admin/view-exam/${exam._id}`)}
+                              className="bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 text-sm font-bold shadow-sm"
+                            >
+                              View
+                            </button>
+
+                            <button 
+                              onClick={() => navigate(`/admin/check-paper/${exam._id}`)}
+                              className="bg-yellow-500 text-white px-3 py-1.5 rounded hover:bg-yellow-600 text-sm font-bold shadow-sm"
+                            >
+                              Results 📊
+                            </button>
+
+                            <button 
+                              onClick={() => handleDeleteExam(exam._id)}
+                              className="bg-red-500 text-white px-3 py-1.5 rounded hover:bg-red-600 text-sm font-bold shadow-sm"
+                            >
+                              Delete 🗑️
+                            </button>
+
+                            {!exam.isPublished && (
+                              <button 
+                                onClick={async () => {
+                                    if(!confirm("Are you sure? Students will be able to see this exam.")) return;
+                                    const res = await fetch(`${API_BASE}/publish/${exam._id}`, { method: "PUT" });
+                                    if(res.ok) {
+                                        alert("Exam Published Successfully!");
+                                        fetchExams(); 
+                                    }
+                                }}
+                                className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm font-bold shadow-sm"
+                              >
+                                Publish 🚀
+                              </button>
+                            )}
+                         </div>
+                     </div>
+                 ))}
+             </div>
+           )}
 
         </main>
       </div>

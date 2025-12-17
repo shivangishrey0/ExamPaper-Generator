@@ -9,7 +9,11 @@ const questionSchema = new mongoose.Schema({
   options: [{ type: String }],
   // Store the type so generation filters work (mcq | short | long)
   questionType: { type: String, enum: ["mcq", "short", "long"], default: "mcq" },
-  correctAnswer: { type: String, required: true },
+  // MCQ requires correctAnswer; subjective can be blank/omitted
+  correctAnswer: { 
+    type: String, 
+    required: function() { return this.questionType === "mcq"; } 
+  },
   createdAt: { type: Date, default: Date.now }
 });
 

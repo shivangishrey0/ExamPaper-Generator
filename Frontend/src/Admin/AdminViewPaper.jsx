@@ -40,34 +40,56 @@ export default function AdminViewPaper() {
           {exam.questions.map((q, index) => (
             <div key={q._id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition bg-white">
               
-              {/* Question Text */}
+              {/* Question Header */}
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 w-3/4">
                   <span className="text-blue-600 mr-2">Q{index + 1}.</span> 
                   {q.questionText}
                 </h3>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold
-                  ${q.difficulty === 'Easy' ? 'bg-green-100 text-green-800' : 
-                    q.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
-                    'bg-red-100 text-red-800'}`}>
-                  {q.difficulty}
-                </span>
+                <div className="flex gap-2 items-center">
+                  {/* Question Type Badge */}
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase
+                    ${q.questionType === 'mcq' ? 'bg-blue-100 text-blue-800' : 
+                      q.questionType === 'short' ? 'bg-purple-100 text-purple-800' : 
+                      'bg-indigo-100 text-indigo-800'}`}>
+                    {q.questionType === 'mcq' ? 'MCQ' : q.questionType === 'short' ? 'Short' : 'Long'}
+                  </span>
+                  {/* Difficulty Badge */}
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold
+                    ${q.difficulty === 'Easy' ? 'bg-green-100 text-green-800' : 
+                      q.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' : 
+                      'bg-red-100 text-red-800'}`}>
+                    {q.difficulty}
+                  </span>
+                </div>
               </div>
 
-              {/* Options */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
-                {q.options.map((opt, i) => (
-                  <div key={i} className={`p-3 rounded border 
-                    ${opt === q.correctAnswer 
-                      ? "bg-green-100 border-green-500 font-bold text-green-900" // Highlight Correct Answer
-                      : "bg-gray-50 border-gray-200 text-gray-600"}`
-                  }>
-                    <span className="mr-2 opacity-50">{String.fromCharCode(65 + i)}.</span>
-                    {opt} 
-                    {opt === q.correctAnswer && <span className="float-right">✅</span>}
+              {/* MCQ Options */}
+              {q.questionType === 'mcq' && q.options && q.options.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-6">
+                  {q.options.map((opt, i) => (
+                    <div key={i} className={`p-3 rounded border 
+                      ${opt === q.correctAnswer 
+                        ? "bg-green-100 border-green-500 font-bold text-green-900" 
+                        : "bg-gray-50 border-gray-200 text-gray-600"}`
+                    }>
+                      <span className="mr-2 opacity-50">{String.fromCharCode(65 + i)}.</span>
+                      {opt} 
+                      {opt === q.correctAnswer && <span className="float-right">✅</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Subjective Answer (Short/Long) */}
+              {(q.questionType === 'short' || q.questionType === 'long') && (
+                <div className="pl-6 mt-4">
+                  <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded">
+                    <p className="text-xs text-green-700 font-bold mb-2">✅ ANSWER:</p>
+                    <p className="text-gray-800 whitespace-pre-wrap">{q.correctAnswer}</p>
                   </div>
-                ))}
-              </div>
+                </div>
+              )}
             </div>
           ))}
 

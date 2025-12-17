@@ -4,22 +4,38 @@ import jwt from "jsonwebtoken";
 import { generateOTP, otpExpiry } from "../utils/otp.js";
 import { sendMail } from "../utils/mailer.js";
 import Exam from "../models/Exam.js";
-import Submission from "../models/Submission.js";
+import Submission from "../models/submission.js";
 
 // --- REGISTER ---
 export const registerStart = async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ message: "Email already exists" });
 
+    // Validation
+    if (!username || !username.trim()) {
+      return res.status(400).json({ message: "Username is required" });
+    }
+    if (!email || !email.trim()) {
+      return res.status(400).json({ message: "Email is required" });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+
+    // Check if email already exists
+    const exists = await User.findOne({ email: email.trim().toLowerCase() });
+    if (exists) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
+    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = generateOTP();
     
     // Save user with OTP
     const user = new User({ 
-        username, 
-        email, 
+        username: username.trim(), 
+        email: email.trim().toLowerCase(), 
         password: hashedPassword, 
         otp, 
         otpExpiry: otpExpiry() 
@@ -28,12 +44,29 @@ export const registerStart = async (req, res) => {
     await user.save();
     
     // Send Email
-    await sendMail(email, "Verify Your Account", `<p>Your verification OTP is: <b>${otp}</b></p>`);
+    try {
+      await sendMail(email.trim().toLowerCase(), "Verify Your Account", `<p>Your verification OTP is: <b>${otp}</b></p>`);
+    } catch (emailError) {
+      console.error("Email sending failed:", emailError);
+      // Don't fail registration if email fails, but log it
+    }
     
     res.json({ message: "OTP sent successfully" });
   } catch (err) {
     console.error("Register Error:", err);
-    res.status(500).json({ message: "Server error" });
+    
+    // Handle MongoDB duplicate key error
+    if (err.code === 11000) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+    
+    // Handle validation errors
+    if (err.name === "ValidationError") {
+      const errors = Object.values(err.errors).map(e => e.message);
+      return res.status(400).json({ message: errors.join(", ") });
+    }
+    
+    res.status(500).json({ message: "Server error: " + err.message });
   }
 };
 
