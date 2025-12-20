@@ -9,6 +9,7 @@ const examSchema = new mongoose.Schema({
   // --- THIS WAS MISSING ---
   isPublished: { type: Boolean, default: false }, 
   // ------------------------
+  duration: { type: Number, default: 0 }, // 0 = Untimed, Number = Minutes
 
   createdAt: { type: Date, default: Date.now }
 });

@@ -141,9 +141,12 @@ const selectRandomQuestions = (excelQuestions, count) => {
 };
 
 // --- 4. MASTER EXAM GENERATOR ---
+// --- 4. MASTER EXAM GENERATOR (UPDATED WITH DURATION) ---
 export const generatePaper = async (req, res) => {
   console.log("🚀 STARTING EXAM GENERATION...");
-  const { title, subject, paperType, easyCount, mediumCount, hardCount, mcqCount, shortCount, longCount } = req.body;
+  
+  // 1. Destructure 'duration' from the request body
+  const { title, subject, paperType, duration, easyCount, mediumCount, hardCount, mcqCount, shortCount, longCount } = req.body;
 
   if (!title || !subject) return res.status(400).json({ message: "Please provide Exam Title and Subject." });
 
@@ -186,11 +189,13 @@ export const generatePaper = async (req, res) => {
 
     if (questions.length === 0) return res.status(400).json({ message: "No questions found matching criteria." });
 
+    // 2. Save the Exam with Duration
     const newExam = new Exam({
       title,
       subject: cleanSubject,
       questions: questions.map(q => q._id),
-      isPublished: false 
+      isPublished: false,
+      duration: Number(duration) || 0 // Saves duration (or 0 if empty)
     });
 
     await newExam.save();

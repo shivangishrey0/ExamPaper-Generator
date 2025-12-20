@@ -13,6 +13,10 @@ export default function TakeExam() {
   const [answers, setAnswers] = useState({});
   const [cameraAllowed, setCameraAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // --- TIMER STATE ---
+  const [timeLeft, setTimeLeft] = useState(null); // in seconds
+  // ------------------
 
   // Fetch Exam Data
   useEffect(() => {
@@ -23,6 +27,10 @@ export default function TakeExam() {
       })
       .then((data) => {
         setExam(data);
+        // Set initial time (convert minutes to seconds)
+        if (data.duration && data.duration > 0) {
+            setTimeLeft(data.duration * 60);
+        }
         setLoading(false);
       })
       .catch((err) => {
@@ -31,18 +39,40 @@ export default function TakeExam() {
       });
   }, [id, navigate]);
 
+  // --- TIMER LOGIC ---
+  useEffect(() => {
+    if (step === "test" && timeLeft !== null) {
+        if (timeLeft <= 0) {
+            alert("⏳ Time is up! Submitting your exam automatically.");
+            handleSubmit(true); // Force submit
+            return;
+        }
+
+        const timerId = setInterval(() => {
+            setTimeLeft((prev) => prev - 1);
+        }, 1000);
+
+        return () => clearInterval(timerId);
+    }
+  }, [step, timeLeft]);
+
+  // Format Time Helper
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+  // -------------------
+
   const handleStartExam = () => {
     if (!cameraAllowed) return alert("You must allow camera access to start!");
     setStep("test");
   };
 
-  const handleSubmit = async () => {
-    if (!window.confirm("Are you sure you want to submit?")) return;
+  const handleSubmit = async (autoSubmit = false) => {
+    if (!autoSubmit && !window.confirm("Are you sure you want to submit?")) return;
     
-    // 1. GET THE SAVED ID
     const studentId = localStorage.getItem("userId");
-
-    // Safety Check
     if (!studentId) {
       alert("User ID missing. Please Logout and Login again.");
       return;
@@ -82,9 +112,9 @@ export default function TakeExam() {
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-sm text-yellow-700">
             <p className="font-bold">⚠️ IMPORTANT RULES:</p>
             <ul className="list-disc ml-5 mt-2 space-y-1">
+              {exam.duration > 0 && <li><strong>Time Limit:</strong> {exam.duration} Minutes.</li>}
               <li>Your camera will be ON during the entire exam.</li>
               <li>Ensure you are in a well-lit room.</li>
-              <li>Do not leave the exam window.</li>
               <li>Once you click Submit, you cannot go back.</li>
             </ul>
           </div>
@@ -97,10 +127,6 @@ export default function TakeExam() {
               screenshotFormat="image/jpeg"
               className="absolute inset-0 w-full h-full object-cover"
               onUserMedia={() => setCameraAllowed(true)}
-              onUserMediaError={(err) => {
-                 console.error("Camera Error:", err);
-                 alert(`Camera Failed: ${err.name} - ${err.message}`);
-              }}
             />
             {!cameraAllowed && <p className="text-white z-10 font-bold">Waiting for camera permission...</p>}
           </div>
@@ -128,8 +154,16 @@ export default function TakeExam() {
   // --- VIEW 2: THE EXAM INTERFACE ---
   if (step === "test") {
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row">
+      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row relative">
         
+        {/* --- FLOATING TIMER --- */}
+        {timeLeft !== null && (
+            <div className={`fixed top-4 right-4 z-[60] px-4 py-2 rounded-lg font-mono text-xl font-bold shadow-xl border-2 ${timeLeft < 60 ? 'bg-red-600 text-white border-red-800 animate-pulse' : 'bg-white text-blue-900 border-blue-900'}`}>
+                ⏳ {formatTime(timeLeft)}
+            </div>
+        )}
+        {/* ---------------------- */}
+
         {/* Main Content: Questions */}
         <div className="flex-1 p-8 overflow-y-auto h-screen">
           <div className="flex justify-between items-center mb-6 border-b pb-4">
@@ -148,7 +182,6 @@ export default function TakeExam() {
                   <p className="font-semibold text-lg text-gray-800 flex-1">
                     <span className="text-blue-600 mr-2">Q{index + 1}.</span> {q.questionText}
                   </p>
-                  {/* Question Type Badge */}
                   <span className={`px-2 py-1 rounded text-xs font-bold ml-2 whitespace-nowrap
                     ${q.questionType === 'mcq' ? 'bg-blue-100 text-blue-700' : 
                       q.questionType === 'short' ? 'bg-purple-100 text-purple-700' : 
@@ -157,23 +190,14 @@ export default function TakeExam() {
                   </span>
                 </div>
                 
-                {/* MCQ Options */}
                 {q.questionType === 'mcq' && q.options && q.options.length > 0 && (
                   <div className="space-y-2 pl-4">
                     {q.options.map((opt, i) => {
                       const optionLabel = String.fromCharCode(65 + i);
                       const optionKey = `Option${optionLabel}`; 
-                      
                       return (
                         <label key={i} className={`flex items-center p-3 rounded border cursor-pointer hover:bg-blue-50 transition ${answers[q._id] === optionKey ? "bg-blue-100 border-blue-500 ring-1 ring-blue-500" : "border-gray-200"}`}>
-                          <input 
-                            type="radio" 
-                            name={q._id} 
-                            value={optionKey} 
-                            checked={answers[q._id] === optionKey}
-                            onChange={() => setAnswers({...answers, [q._id]: optionKey})}
-                            className="w-4 h-4 text-blue-600 mr-3"
-                          />
+                          <input type="radio" name={q._id} value={optionKey} checked={answers[q._id] === optionKey} onChange={() => setAnswers({...answers, [q._id]: optionKey})} className="w-4 h-4 text-blue-600 mr-3" />
                           <span className="font-bold mr-2 text-gray-400">({optionLabel})</span>
                           {opt} 
                         </label>
@@ -182,68 +206,38 @@ export default function TakeExam() {
                   </div>
                 )}
 
-                {/* Short Answer Text Area */}
                 {q.questionType === 'short' && (
                   <div className="pl-4">
-                    <textarea
-                      placeholder="Type your answer here (2-3 lines recommended)"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 outline-none resize-none"
-                      rows="3"
-                      value={answers[q._id] || ''}
-                      onChange={(e) => setAnswers({...answers, [q._id]: e.target.value})}
-                    />
+                    <textarea placeholder="Type your answer here..." className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none" rows="3" value={answers[q._id] || ''} onChange={(e) => setAnswers({...answers, [q._id]: e.target.value})} />
                   </div>
                 )}
 
-                {/* Long Answer Text Area */}
                 {q.questionType === 'long' && (
                   <div className="pl-4">
-                    <textarea
-                      placeholder="Write a detailed answer here (elaborate explanation expected)"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-y"
-                      rows="8"
-                      value={answers[q._id] || ''}
-                      onChange={(e) => setAnswers({...answers, [q._id]: e.target.value})}
-                    />
+                    <textarea placeholder="Write a detailed answer here..." className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y" rows="8" value={answers[q._id] || ''} onChange={(e) => setAnswers({...answers, [q._id]: e.target.value})} />
                   </div>
                 )}
-
               </div>
             ))}
           </div>
 
           <div className="fixed bottom-0 left-0 w-full md:w-auto md:relative bg-white border-t p-4 flex justify-end">
-             <button 
-                onClick={handleSubmit}
-                className="bg-blue-900 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-800 shadow-lg"
-             >
-                Submit Answer Sheet
-             </button>
+             <button onClick={() => handleSubmit(false)} className="bg-blue-900 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-800 shadow-lg">Submit Answer Sheet</button>
           </div>
         </div>
 
         {/* Sidebar: Webcam Proctoring */}
         <div className="w-full md:w-72 bg-black p-4 flex flex-col items-center md:h-screen sticky top-0 z-50">
           <div className="w-full aspect-video bg-gray-900 rounded-lg overflow-hidden border-2 border-red-500 relative mb-4 shadow-lg">
-             <Webcam
-                audio={false}
-                ref={webcamRef}
-                className="w-full h-full object-cover"
-             />
+             <Webcam audio={false} ref={webcamRef} className="w-full h-full object-cover" />
              <div className="absolute top-2 right-2 w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
              <div className="absolute bottom-1 left-2 text-white text-[10px] bg-black bg-opacity-50 px-1 rounded">REC</div>
           </div>
-          <p className="text-white text-xs text-center opacity-70">
-            <span className="text-red-500 font-bold">PROCTORING ACTIVE</span><br/>
-            Your session is being monitored.
-          </p>
+          <p className="text-white text-xs text-center opacity-70"><span className="text-red-500 font-bold">PROCTORING ACTIVE</span><br/>Your session is being monitored.</p>
           
-          {/* Question Navigator */}
           <div className="mt-8 w-full grid grid-cols-5 gap-2">
             {exam.questions.map((q, i) => (
-                <div key={i} className={`h-8 w-8 rounded flex items-center justify-center text-xs font-bold ${answers[q._id] ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300'}`}>
-                    {i+1}
-                </div>
+                <div key={i} className={`h-8 w-8 rounded flex items-center justify-center text-xs font-bold ${answers[q._id] ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300'}`}>{i+1}</div>
             ))}
           </div>
         </div>
@@ -259,12 +253,7 @@ export default function TakeExam() {
         <div className="text-6xl mb-4">✅</div>
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Exam Submitted!</h1>
         <p className="text-gray-600 mb-8">Your answers have been securely sent to the admin for grading.</p>
-        <button 
-          onClick={() => navigate("/user/dashboard")}
-          className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition"
-        >
-          Return to Dashboard
-        </button>
+        <button onClick={() => navigate("/user/dashboard")} className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition">Return to Dashboard</button>
       </div>
     </div>
   );
