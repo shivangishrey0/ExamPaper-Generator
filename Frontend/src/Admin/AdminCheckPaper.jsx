@@ -7,7 +7,7 @@ export default function AdminCheckPaper() {
   const [submissions, setSubmissions] = useState([]);
   const [selectedPaper, setSelectedPaper] = useState(null);
   const [examData, setExamData] = useState(null);
-  const [manualScores, setManualScores] = useState({}); // Stores scores for subjective questions
+  const [manualScores, setManualScores] = useState({}); 
 
   // 1. Fetch data
   useEffect(() => {
@@ -21,34 +21,44 @@ export default function AdminCheckPaper() {
       .then(data => setExamData(data));
   }, [examId]);
 
+  // --- HELPER: Normalize Strings for Comparison ---
+  // This fixes the "TCP" vs "tcp" and "Layer 2 " vs "Layer 2" issue
+  const cleanString = (str) => {
+    if (!str) return "";
+    return String(str).trim().toLowerCase();
+  };
+
   // --- HELPER: Convert "OptionA" -> "Actual Text Answer" ---
   const getOptionText = (question, optionKey) => {
     if (!optionKey) return "Not Answered";
-
+    
     // If it's the new format "OptionA", "OptionB"...
     if (optionKey.startsWith("Option") && optionKey.length > 6) {
-      // Get the last character ('A', 'B'...)
       const charCode = optionKey.charCodeAt(optionKey.length - 1);
-      // Convert 'A' (65) -> Index 0
       const index = charCode - 65;
-
-      // Return the text from the options array
       return question.options[index] || optionKey;
     }
-
-    // Fallback for old data or other formats
     return optionKey;
   };
 
-  // 2. Auto-Check Logic (Only MCQs can be auto-graded)
-  // 2. Score Calculation Logic
+  // 2. Score Calculation Logic (UPDATED)
   const getAutoScore = () => {
     if (!selectedPaper || !examData) return 0;
     let score = 0;
+    
     examData.questions.forEach(q => {
       if (q.questionType === 'mcq') {
-        const studentAns = selectedPaper.answers[q._id];
-        if (studentAns === q.correctAnswer) score++;
+        const studentAnsRaw = selectedPaper.answers[q._id];
+        const correctAnsRaw = q.correctAnswer;
+
+        // Resolve text first to ensure we compare apples to apples
+        const studentText = getOptionText(q, studentAnsRaw);
+        const correctText = getOptionText(q, correctAnsRaw);
+
+        // Compare using the cleanString helper
+        if (cleanString(studentText) === cleanString(correctText)) {
+          score++;
+        }
       }
     });
     return score;
@@ -69,7 +79,6 @@ export default function AdminCheckPaper() {
     }, 0);
   };
 
-  // Count question types
   const countQuestionTypes = () => {
     if (!examData) return { mcq: 0, subjective: 0, total: 0 };
     const mcq = examData.questions.filter(q => q.questionType === 'mcq').length;
@@ -128,7 +137,7 @@ export default function AdminCheckPaper() {
               <button
                 onClick={() => {
                   setSelectedPaper(sub);
-                  setManualScores({}); // Reset manual scores when opening a new paper
+                  setManualScores({}); 
                 }}
                 className="bg-blue-900 text-white px-4 py-2 rounded hover:bg-blue-800"
               >
@@ -155,7 +164,7 @@ export default function AdminCheckPaper() {
               </div>
               {countQuestionTypes().subjective > 0 && (
                 <div className="mt-3 bg-yellow-50 border border-yellow-300 rounded p-3 text-sm text-yellow-800">
-                  ⚠️ <strong>Note:</strong> This exam contains {countQuestionTypes().subjective} subjective question(s). Please review manually and adjust the final score before publishing.
+                  ⚠️ <strong>Note:</strong> This exam contains {countQuestionTypes().subjective} subjective question(s). Please review manually.
                 </div>
               )}
             </div>
@@ -166,17 +175,17 @@ export default function AdminCheckPaper() {
                 const studentAnsKey = selectedPaper.answers[q._id];
                 const correctAnsKey = q.correctAnswer;
 
-                const isCorrect = studentAnsKey === correctAnsKey;
-
-                // For MCQ: Convert keys to readable text
+                // 1. Resolve to text
                 const studentText = q.questionType === 'mcq' ? getOptionText(q, studentAnsKey) : studentAnsKey;
                 const correctText = q.questionType === 'mcq' ? getOptionText(q, correctAnsKey) : correctAnsKey;
+
+                // 2. Normalize and Compare (Fix for case sensitivity)
+                const isCorrect = cleanString(studentText) === cleanString(correctText);
 
                 return (
                   <div key={q._id} className={`p-4 rounded border-2 ${isCorrect ? 'border-green-200 bg-green-50' : (q.questionType === 'mcq' ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-gray-50')}`}>
                     <div className="flex justify-between items-start mb-3">
                       <p className="font-bold">Q{index + 1}. {q.questionText}</p>
-                      {/* Question Type Badge */}
                       <span className={`px-2 py-1 rounded text-xs font-bold uppercase ml-2
                                     ${q.questionType === 'mcq' ? 'bg-blue-100 text-blue-700' :
                           q.questionType === 'short' ? 'bg-purple-100 text-purple-700' :
@@ -191,7 +200,7 @@ export default function AdminCheckPaper() {
                         <div className="p-2 bg-white rounded border">
                           <span className="block text-gray-500 text-xs uppercase">Student Answer</span>
                           <span className={`font-bold ${isCorrect ? 'text-green-700' : 'text-red-600'}`}>
-                            {studentText}
+                            {studentText || "Not Answered"}
                           </span>
                         </div>
                         <div className="p-2 bg-white rounded border">
@@ -201,7 +210,7 @@ export default function AdminCheckPaper() {
                       </div>
                     )}
 
-                    {/* Subjective Display (Short/Long) */}
+                    {/* Subjective Display */}
                     {(q.questionType === 'short' || q.questionType === 'long') && (
                       <div className="space-y-3">
                         <div className="p-3 bg-blue-50 rounded border border-blue-200">
@@ -209,12 +218,12 @@ export default function AdminCheckPaper() {
                           <p className="text-gray-800 whitespace-pre-wrap">{studentText || "(No answer provided)"}</p>
                         </div>
                         <div className="p-3 bg-green-50 rounded border border-green-200">
-                          <span className="block text-gray-600 text-xs uppercase font-semibold mb-2">Expected Answer / Key Points:</span>
+                          <span className="block text-gray-600 text-xs uppercase font-semibold mb-2">Expected Answer:</span>
                           <p className="text-gray-800 whitespace-pre-wrap">{correctText}</p>
                         </div>
                         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm text-yellow-800 flex justify-between items-center">
                           <div>
-                            ⚠️ <strong>Manual Grading Required:</strong> Compare answers and assign a score (Max: {q.questionType === 'long' ? 5 : 2}).
+                            ⚠️ <strong>Manual Grading:</strong> (Max: {q.questionType === 'long' ? 5 : 2}).
                           </div>
                           <div className="flex items-center gap-2">
                             <label className="font-bold text-blue-900">Score:</label>

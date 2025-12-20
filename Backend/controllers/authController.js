@@ -48,24 +48,13 @@ export const registerStart = async (req, res) => {
       await sendMail(email.trim().toLowerCase(), "Verify Your Account", `<p>Your verification OTP is: <b>${otp}</b></p>`);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
-      // Don't fail registration if email fails, but log it
     }
     
     res.json({ message: "OTP sent successfully" });
   } catch (err) {
     console.error("Register Error:", err);
-    
-    // Handle MongoDB duplicate key error
-    if (err.code === 11000) {
-      return res.status(400).json({ message: "Email already exists" });
-    }
-    
-    // Handle validation errors
-    if (err.name === "ValidationError") {
-      const errors = Object.values(err.errors).map(e => e.message);
-      return res.status(400).json({ message: errors.join(", ") });
-    }
-    
+    if (err.code === 11000) return res.status(400).json({ message: "Email already exists" });
+    if (err.name === "ValidationError") return res.status(400).json({ message: Object.values(err.errors).map(e => e.message).join(", ") });
     res.status(500).json({ message: "Server error: " + err.message });
   }
 };
@@ -76,23 +65,17 @@ export const verifyEmail = async (req, res) => {
     const { email, otp } = req.body;
     const user = await User.findOne({ email });
     
-    // Check if user exists and OTP matches
     if (!user) return res.status(400).json({ message: "User not found" });
     if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
-    
-    // Optional: Check if OTP is expired (if you have expiry logic in DB)
-    if (user.otpExpiry && user.otpExpiry < Date.now()) {
-        return res.status(400).json({ message: "OTP has expired" });
-    }
+    if (user.otpExpiry && user.otpExpiry < Date.now()) return res.status(400).json({ message: "OTP has expired" });
 
     user.isVerified = true; 
-    user.otp = undefined; // Clear OTP after use
+    user.otp = undefined; 
     user.otpExpiry = undefined;
     await user.save();
     
     res.json({ message: "Email Verified Successfully" });
   } catch(err) { 
-      console.error(err);
       res.status(500).json({message: "Server Error"}); 
   }
 };
@@ -101,13 +84,9 @@ export const verifyEmail = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "User not found" });
-
-    if (!user.isVerified) {
-        return res.status(400).json({ message: "Email not verified" });
-    }
+    if (!user.isVerified) return res.status(400).json({ message: "Email not verified" });
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Incorrect password" });
@@ -122,79 +101,50 @@ export const login = async (req, res) => {
       userId: user._id, 
       username: user.username 
     });
-
   } catch (error) {
-    console.error("Login Error:", error);
     return res.status(500).json({ message: "Server Error" });
   }
 };
 
-// --- FORGOT PASSWORD (FIXED) ---
+// --- FORGOT PASSWORD ---
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    console.log("Forgot Password requested for:", email);
-
-    // 1. Check if user exists
     const user = await User.findOne({ email });
-    if (!user) {
-        return res.status(404).json({ message: "User with this email does not exist" });
-    }
+    if (!user) return res.status(404).json({ message: "User with this email does not exist" });
 
-    // 2. Generate New OTP
     const otp = generateOTP();
     user.otp = otp;
-    user.otpExpiry = otpExpiry(); // Set expiry (e.g., 10 mins from now)
+    user.otpExpiry = otpExpiry(); 
     await user.save();
 
-    // 3. Send Email
     await sendMail(email, "Reset Password Request", `
       <h3>Password Reset</h3>
-      <p>You requested to reset your password.</p>
       <p>Your OTP is: <b style="font-size: 20px;">${otp}</b></p>
       <p>This OTP is valid for 10 minutes.</p>
     `);
-
     res.json({ message: "OTP sent to your email" });
-
   } catch (error) {
-    console.error("Forgot Password Error:", error);
     res.status(500).json({ message: "Error sending email" });
   }
 };
 
-// --- RESET PASSWORD (FIXED) ---
+// --- RESET PASSWORD ---
 export const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
-
-    // 1. Find User
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "User not found" });
+    if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (user.otpExpiry && user.otpExpiry < Date.now()) return res.status(400).json({ message: "OTP Expired" });
 
-    // 2. Verify OTP
-    if (user.otp !== otp) {
-        return res.status(400).json({ message: "Invalid OTP" });
-    }
-
-    // 3. Check Expiry
-    if (user.otpExpiry && user.otpExpiry < Date.now()) {
-        return res.status(400).json({ message: "OTP Expired. Please request a new one." });
-    }
-
-    // 4. Hash New Password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    
-    // 5. Update User
-    user.password = hashedPassword;
-    user.otp = undefined;       // Clear OTP
-    user.otpExpiry = undefined; // Clear Expiry
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.otp = undefined; 
+    user.otpExpiry = undefined;
     await user.save();
 
     res.json({ message: "Password reset successful. You can now login." });
-
   } catch (error) {
-    console.error("Reset Password Error:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };
@@ -217,6 +167,7 @@ export const getAvailableExams = async (req, res) => {
         let score = null;
 
         if (submission) {
+          // Status depends on isGraded flag
           status = submission.isGraded ? "graded" : "submitted";
           score = submission.score;
         }
@@ -228,7 +179,6 @@ export const getAvailableExams = async (req, res) => {
 
     res.json(examsWithStatus);
   } catch (error) {
-    console.error("Error fetching exams:", error);
     res.status(500).json({ message: "Server error fetching exams" });
   }
 };
@@ -244,20 +194,75 @@ export const getExamById = async (req, res) => {
   }
 };
 
+// --- HELPER: NORMALIZE TEXT ---
+const normalizeAnswer = (text) => {
+  if (!text) return "";
+  return String(text).trim().toLowerCase().replace(/\s+/g, " "); 
+};
+
 // --- SUBMIT EXAM ---
 export const submitExam = async (req, res) => {
   const { examId, answers, studentId } = req.body; 
+  
   try {
-    const exam = await Exam.findById(examId);
+    const exam = await Exam.findById(examId).populate("questions");
     if (!exam) return res.status(404).json({ message: "Exam not found" });
     
+    // Check double submission
     const existingSubmission = await Submission.findOne({ examId, studentId });
     if (existingSubmission) return res.status(400).json({ message: "Already submitted." });
 
-    const newSubmission = new Submission({ examId, studentId, answers, isGraded: false });
+    let calculatedScore = 0;
+    console.log("--- INITIAL AUTO-GRADING START ---"); 
+
+    exam.questions.forEach((question) => {
+      const qId = question._id.toString();
+      let studentAns = answers[qId]; 
+
+      // 🔥 Option Key Correction Logic
+      if (studentAns && typeof studentAns === 'string' && studentAns.toLowerCase().startsWith("option")) {
+         const cleanKey = studentAns.toLowerCase().replace("option", "").trim(); 
+         let index = -1;
+         if (cleanKey === "a" || cleanKey === "1") index = 0;
+         else if (cleanKey === "b" || cleanKey === "2") index = 1;
+         else if (cleanKey === "c" || cleanKey === "3") index = 2;
+         else if (cleanKey === "d" || cleanKey === "4") index = 3;
+
+         if (index !== -1 && question.options && question.options[index]) {
+             studentAns = question.options[index];
+         }
+      }
+
+      if (question.correctAnswer) {
+        const cleanStudent = normalizeAnswer(studentAns);
+        const cleanCorrect = normalizeAnswer(question.correctAnswer);
+
+        if (cleanStudent === cleanCorrect) {
+          calculatedScore += 1; 
+        }
+      }
+    });
+
+    // --- IMPORTANT CHANGE HERE ---
+    // We force isGraded: false regardless of exam type.
+    // This ensures the status stays "submitted" (Pending) until Admin clicks Publish.
+    
+    const newSubmission = new Submission({ 
+      examId, 
+      studentId, 
+      answers, 
+      score: calculatedScore, // Saves the tentative score
+      isGraded: false // <--- ALWAYS FALSE Initially
+    });
+
     await newSubmission.save();
     
-    res.json({ message: "Exam submitted successfully!" });
+    res.json({ 
+      message: "Exam submitted successfully! Waiting for admin review.", 
+      score: calculatedScore,
+      total: exam.questions.length
+    });
+
   } catch (error) {
     console.error("Submit Error:", error);
     res.status(500).json({ message: "Error submitting exam" });

@@ -34,7 +34,6 @@ export default function UserDashboard() {
         navigate("/login");
     };
 
-    // --- SEPARATE THE LISTS ---
     const availableExams = exams.filter(e => e.status === 'not_attempted' || !e.status);
     const pastExams = exams.filter(e => e.status === 'submitted' || e.status === 'graded');
 
@@ -105,62 +104,71 @@ export default function UserDashboard() {
                             <p className="text-gray-500">No history available yet.</p>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {pastExams.map((exam) => (
-                                    <div key={exam._id} className={`bg-white rounded-xl shadow-md border overflow-hidden relative ${exam.status === 'graded' ? 'border-green-500' : 'border-yellow-400'
-                                        }`}>
+                                {pastExams.map((exam) => {
+                                    const isGraded = exam.status === 'graded';
+                                    
+                                    return (
+                                    <div key={exam._id} className={`bg-white rounded-xl shadow-md border overflow-hidden relative ${isGraded ? 'border-green-500' : 'border-yellow-400'}`}>
+                                        
                                         {/* Status Banner */}
-                                        <div className={`px-4 py-2 text-white font-bold text-sm text-center tracking-wide uppercase ${exam.status === 'graded' ? 'bg-green-600' : 'bg-yellow-500'
-                                            }`}>
-                                            {exam.status === 'graded' ? 'Report Card' : 'Pending Check'}
+                                        <div className={`px-4 py-2 text-white font-bold text-sm text-center tracking-wide uppercase ${isGraded ? 'bg-green-600' : 'bg-yellow-500'}`}>
+                                            {isGraded ? '✅ Grading Complete' : '⏳ Pending Review'}
                                         </div>
 
                                         <div className="p-6">
                                             <h3 className="text-xl font-bold text-gray-800 mb-1">{exam.title}</h3>
                                             <p className="text-sm text-gray-500 mb-6 font-medium">{exam.subject}</p>
 
-                                            {/* SCORE DISPLAY */}
-                                            {exam.status === 'graded' ? (() => {
-                                                // Calculate Max Score dynamically
+                                            {/* SCORE DISPLAY LOGIC */}
+                                            {isGraded ? (() => {
                                                 const maxScore = exam.questions.reduce((total, q) => {
                                                     if (q.questionType === 'short') return total + 2;
                                                     if (q.questionType === 'long') return total + 5;
-                                                    return total + 1; // MCQ
+                                                    return total + 1; 
                                                 }, 0);
                                                 const percentage = (exam.score / maxScore) * 100;
 
                                                 return (
-                                                    <div className="bg-green-50 rounded-lg p-4 border border-green-100 flex flex-col items-center justify-center">
-                                                        <span className="text-gray-500 text-xs font-bold uppercase mb-1">Total Score</span>
-                                                        <div className="flex items-baseline gap-1">
-                                                            <span className="text-4xl font-black text-green-700">{exam.score}</span>
-                                                            <span className="text-gray-400 font-bold text-lg">/ {maxScore}</span>
+                                                    <div className="space-y-4">
+                                                        <div className="bg-green-50 rounded-lg p-4 border border-green-100 flex flex-col items-center justify-center">
+                                                            <span className="text-gray-500 text-xs font-bold uppercase mb-1">Your Score</span>
+                                                            <div className="flex items-baseline gap-1">
+                                                                <span className="text-4xl font-black text-green-700">{exam.score}</span>
+                                                                <span className="text-gray-400 font-bold text-lg">/ {maxScore}</span>
+                                                            </div>
+                                                            <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5">
+                                                                <div className="bg-green-600 h-2.5 rounded-full" style={{ width: `${Math.min(percentage, 100)}%` }}></div>
+                                                            </div>
                                                         </div>
-                                                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2.5 dark:bg-gray-300">
-                                                            <div
-                                                                className="bg-green-600 h-2.5 rounded-full"
-                                                                style={{ width: `${Math.min(percentage, 100)}%` }}
-                                                            ></div>
-                                                        </div>
-                                                        <p className="text-xs text-green-800 mt-2 font-semibold">
-                                                            {percentage.toFixed(0)}% Percentage
-                                                        </p>
+                                                        
+                                                        {/* --- NEW BUTTON: View Detailed Report --- */}
+                                                        {/* Note: You need to create a page for this route if you want detailed Q&A review */}
+                                                        <button 
+                                                            onClick={() => alert("Detailed report page coming soon! (Or create route /user/result/:id)")}
+                                                            // onClick={() => navigate(`/user/result/${exam._id}`)} 
+                                                            className="w-full py-2 border-2 border-green-600 text-green-700 font-bold rounded hover:bg-green-50 transition"
+                                                        >
+                                                            📄 View Detailed Report
+                                                        </button>
                                                     </div>
                                                 );
                                             })() : (
                                                 <div className="bg-yellow-50 rounded-lg p-6 border border-yellow-100 text-center">
-                                                    <div className="text-3xl mb-2">⏳</div>
-                                                    <h4 className="font-bold text-yellow-800">Waiting for Results</h4>
-                                                    <p className="text-xs text-yellow-700 mt-1">Admin is currently checking your paper.</p>
+                                                    <div className="text-3xl mb-2">🤔</div>
+                                                    <h4 className="font-bold text-yellow-800">Waiting for Grade</h4>
+                                                    <p className="text-xs text-yellow-700 mt-2">
+                                                        Your answers are submitted. <br/>
+                                                        Please check back after the Admin publishes the result.
+                                                    </p>
                                                 </div>
                                             )}
                                         </div>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         )}
                     </div>
                 )}
-
             </main>
         </div>
     );
