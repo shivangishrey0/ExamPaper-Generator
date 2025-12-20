@@ -1,16 +1,16 @@
 import express from "express";
 import multer from "multer";
-import { 
-  adminLogin, 
-  addQuestion, 
-  generatePaper, 
-  getExams, 
-  uploadQuestions, 
-  getExamById, 
-  publishExam, 
-  getSubmissions, 
+import {
+  adminLogin,
+  addQuestion,
+  generatePaper,
+  getExams,
+  uploadQuestions,
+  getExamById,
+  publishExam,
+  getSubmissions,
   gradeSubmission,
-  generateQuestionsAI,
+
   deleteExam,
   deleteAllQuestions // <--- ADDED THIS IMPORT
 } from "../controllers/adminController.js";
@@ -24,20 +24,20 @@ const upload = multer({ dest: "uploads/" });
 router.post("/login", adminLogin);
 
 // --- QUESTION MANAGEMENT ---
-router.post("/add-question", addQuestion); 
-router.post("/upload-questions", upload.single("file"), uploadQuestions); 
-router.post("/generate-ai-questions", generateQuestionsAI); 
+router.post("/add-question", addQuestion);
+router.post("/upload-questions", upload.single("file"), uploadQuestions);
+
 router.delete("/delete-all-questions", deleteAllQuestions); // <--- ADDED THIS ROUTE
 
 // --- EXAM MANAGEMENT ---
-router.post("/generate-paper", generatePaper); 
-router.get("/get-exams", getExams); 
-router.get("/exam/:id", getExamById); 
-router.delete("/exam/:id", deleteExam); 
+router.post("/generate-paper", generatePaper);
+router.get("/get-exams", getExams);
+router.get("/exam/:id", getExamById);
+router.delete("/exam/:id", deleteExam);
 
 // --- PUBLISH & GRADING ---
-router.put("/publish/:id", publishExam); 
-router.get("/submissions/:examId", getSubmissions); 
-router.post("/grade-paper", gradeSubmission); 
+router.put("/publish/:id", publishExam);
+router.get("/submissions/:examId", getSubmissions);
+router.post("/grade-paper", gradeSubmission);
 
 export default router;

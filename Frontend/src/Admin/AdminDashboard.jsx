@@ -17,8 +17,7 @@ export default function AdminDashboard() {
     easyCount: 0, mediumCount: 0, hardCount: 0,
     mcqCount: 0, shortCount: 0, longCount: 0
   });
-  const [aiData, setAiData] = useState({ topic: "", subject: "DBMS", difficulty: "Medium", count: 5 });
-  const [aiLoading, setAiLoading] = useState(false);
+
   const [exams, setExams] = useState([]);
 
   // --- HANDLERS ---
@@ -82,20 +81,7 @@ export default function AdminDashboard() {
     } catch (error) { alert("Server Error during upload"); }
   };
 
-  const handleAIGenerate = async () => {
-    if(!aiData.topic) return alert("Please enter a topic!");
-    setAiLoading(true);
-    try {
-        const res = await fetch(`${API_BASE}/generate-ai-questions`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(aiData),
-        });
-        const data = await res.json();
-        if(res.ok) alert(data.message); else alert("Error: " + data.message);
-    } catch (error) { alert("Server error connecting to AI"); } 
-    finally { setAiLoading(false); }
-  };
+
 
   const handleGenerate = async () => {
     if (!gData.title) return alert("Please enter an Exam Title");
@@ -188,9 +174,7 @@ export default function AdminDashboard() {
             <button onClick={() => setActiveTab("upload")} className={`w-full text-left p-3 rounded transition ${activeTab === "upload" ? "bg-blue-100 text-blue-900 font-bold" : "hover:bg-gray-100"}`}>
               📂 Bulk Upload (Excel)
             </button>
-            <button onClick={() => setActiveTab("ai")} className={`w-full text-left p-3 rounded transition ${activeTab === "ai" ? "bg-purple-100 text-purple-900 font-bold" : "hover:bg-gray-100"}`}>
-              ✨ AI Question Generator
-            </button>
+
             <button onClick={() => setActiveTab("generate")} className={`w-full text-left p-3 rounded transition ${activeTab === "generate" ? "bg-blue-100 text-blue-900 font-bold" : "hover:bg-gray-100"}`}>
               ⚡ Generate Exam Paper
             </button>
@@ -283,21 +267,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* 3. AI GENERATOR */}
-          {activeTab === "ai" && (
-             <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto border-t-4 border-purple-600">
-                <h2 className="text-2xl font-bold mb-2 text-purple-900">✨ AI Question Generator</h2>
-                <p className="mb-6 text-gray-600 text-sm">Enter a topic, and our AI will automatically generate questions and save them to the database.</p>
-                <label className="block text-gray-700 font-bold mb-2">Topic</label>
-                <input placeholder="e.g., Normalization, Deadlocks, TCP/IP" className="w-full border p-3 rounded mb-4 focus:ring-2 ring-purple-500 outline-none" onChange={(e) => setAiData({...aiData, topic: e.target.value})}/>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Subject</label><select className="w-full border p-2 rounded" onChange={(e) => setAiData({...aiData, subject: e.target.value})}><option value="DBMS">DBMS</option><option value="Operating System">Operating System</option><option value="Computer Networks">Networks</option></select></div>
-                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Difficulty</label><select className="w-full border p-2 rounded" onChange={(e) => setAiData({...aiData, difficulty: e.target.value})}><option>Easy</option><option>Medium</option><option>Hard</option></select></div>
-                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Count</label><input type="number" max="10" placeholder="5" className="w-full border p-2 rounded" value={aiData.count} onChange={(e) => setAiData({...aiData, count: e.target.value})}/></div>
-                </div>
-                <button onClick={handleAIGenerate} disabled={aiLoading} className={`w-full py-3 rounded font-bold text-white transition shadow-lg ${aiLoading ? "bg-gray-400 cursor-not-allowed" : "bg-purple-600 hover:bg-purple-700"}`}>{aiLoading ? "Generating... 🤖" : "Generate & Save Questions ✨"}</button>
-             </div>
-          )}
+
 
           {/* 4. MASTER EXAM GENERATOR */}
           {activeTab === "generate" && (
