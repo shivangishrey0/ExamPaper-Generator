@@ -1,4 +1,4 @@
-import Question from "../models/Questions.js"; 
+import Question from "../models/Questions.js";
 import Exam from "../models/Exam.js";
 import xlsx from "xlsx";
 import fs from "fs";
@@ -46,7 +46,7 @@ export const uploadQuestions = async (req, res) => {
 
     const getValue = (row, potentialHeaders) => {
       const rowKeys = Object.keys(row);
-      const foundKey = rowKeys.find(key => 
+      const foundKey = rowKeys.find(key =>
         potentialHeaders.some(ph => key.toLowerCase().trim() === ph.toLowerCase().trim())
       );
       return foundKey ? row[foundKey] : undefined;
@@ -57,7 +57,7 @@ export const uploadQuestions = async (req, res) => {
       let rawType = getValue(row, ["QuestionType", "Type", "qType"]) || "mcq";
       rawType = rawType.toLowerCase().trim();
 
-      let finalType = "mcq"; 
+      let finalType = "mcq";
       if (rawType.includes("long") || rawType.includes("essay")) finalType = "long";
       else if (rawType.includes("short") || rawType.includes("subjective") || rawType.includes("theory")) finalType = "short";
 
@@ -92,7 +92,7 @@ export const uploadQuestions = async (req, res) => {
           finalAnswer = options[index];
         }
       }
-      
+
       return {
         questionText: getValue(row, ["Question", "QuestionText", "QText"]),
         subject: getValue(row, ["Subject", "Sub"]),
@@ -100,7 +100,7 @@ export const uploadQuestions = async (req, res) => {
         section: getValue(row, ["Section", "Sec"]) || "Section A",
         questionType: finalType,
         options: options,
-        correctAnswer: finalAnswer 
+        correctAnswer: finalAnswer
       };
     });
 
@@ -113,9 +113,9 @@ export const uploadQuestions = async (req, res) => {
     await Question.insertMany(validQuestions);
     fs.unlinkSync(req.file.path);
 
-    res.status(201).json({ 
+    res.status(201).json({
       message: `Successfully uploaded ${validQuestions.length} questions!`,
-      typeDetected: validQuestions[0].questionType 
+      typeDetected: validQuestions[0].questionType
     });
 
   } catch (error) {
@@ -144,14 +144,14 @@ const selectRandomQuestions = (excelQuestions, count) => {
 // --- 4. MASTER EXAM GENERATOR (UPDATED WITH DURATION) ---
 export const generatePaper = async (req, res) => {
   console.log("🚀 STARTING EXAM GENERATION...");
-  
+
   // 1. Destructure 'duration' from the request body
   const { title, subject, paperType, duration, easyCount, mediumCount, hardCount, mcqCount, shortCount, longCount } = req.body;
 
   if (!title || !subject) return res.status(400).json({ message: "Please provide Exam Title and Subject." });
 
   const cleanSubject = subject.trim();
-  const subjectRegex = new RegExp(`^${cleanSubject}$`, "i"); 
+  const subjectRegex = new RegExp(`^${cleanSubject}$`, "i");
   let questions = [];
 
   try {
@@ -209,10 +209,10 @@ export const generatePaper = async (req, res) => {
 
 // --- 5. GET EXAMS ---
 export const getExams = async (req, res) => {
-    try {
-        const exams = await Exam.find().populate("questions").sort({ createdAt: -1 });
-        res.json(exams);
-    } catch (error) { res.status(500).json({ message: "Error fetching exams" }); }
+  try {
+    const exams = await Exam.find().populate("questions").sort({ createdAt: -1 });
+    res.json(exams);
+  } catch (error) { res.status(500).json({ message: "Error fetching exams" }); }
 };
 
 // --- 6. GET SINGLE EXAM ---
@@ -261,48 +261,48 @@ export const gradeSubmission = async (req, res) => {
 
     // 3. Iterate and Calculate Score Server-Side
     exam.questions.forEach((q) => {
-      if(q.questionType === 'mcq') {
+      if (q.questionType === 'mcq') {
         const qId = q._id.toString();
-        
+
         // --- FIXED: Use Bracket Notation for Object Access ---
-        const studentAns = submission.answers[qId] || ""; 
-        
+        const studentAns = submission.answers[qId] || "";
+
         const correctAns = q.correctAnswer;
 
         // Strict comparison logging
         const isMatch = cleanStr(studentAns) === cleanStr(correctAns);
-        
+
         if (isMatch) {
-            serverCalculatedScore += 1;
-            console.log(`Q: ${q.questionText.substring(0, 15)}... | Student: "${studentAns}" | Correct: "${correctAns}" [MATCH]`);
+          serverCalculatedScore += 1;
+          console.log(`Q: ${q.questionText.substring(0, 15)}... | Student: "${studentAns}" | Correct: "${correctAns}" [MATCH]`);
         } else {
-            console.log(`Q: ${q.questionText.substring(0, 15)}... | Student: "${studentAns}" | Correct: "${correctAns}" [NO MATCH]`);
+          console.log(`Q: ${q.questionText.substring(0, 15)}... | Student: "${studentAns}" | Correct: "${correctAns}" [NO MATCH]`);
         }
       }
     });
 
     // 4. Handle Manual Scores vs Server Score
     const finalScore = frontendScore !== undefined ? frontendScore : serverCalculatedScore;
-    
+
     console.log(`--- GRADING END. Final Score: ${finalScore} ---`);
 
     // 5. Update Database
-    await Submission.findByIdAndUpdate(submissionId, { 
-        score: finalScore, 
-        isGraded: true 
+    await Submission.findByIdAndUpdate(submissionId, {
+      score: finalScore,
+      isGraded: true
     });
 
     res.json({ message: "Result published!", score: finalScore });
 
-  } catch (error) { 
+  } catch (error) {
     console.error("Grading Error:", error);
-    res.status(500).json({ message: "Error grading paper" }); 
+    res.status(500).json({ message: "Error grading paper" });
   }
 };
 
 // --- 9. AI GENERATOR (PLACEHOLDER) ---
 export const generateQuestionsAI = async (req, res) => {
-    res.json({ message: "AI Generator is currently disabled per user request." });
+  res.json({ message: "AI Generator is currently disabled per user request." });
 };
 
 // --- 10. DELETE EXAM (SAFE MODE) ---
@@ -312,6 +312,8 @@ export const deleteExam = async (req, res) => {
     if (!exam) return res.status(404).json({ message: "Not found" });
 
     // NOTE: We do NOT delete questions here anymore. 
+    console.log(`Deleting Exam ${exam.title} (${req.params.id}) - QUESTIONS PRESERVED`);
+
     await Submission.deleteMany({ examId: req.params.id });
     await Exam.findByIdAndDelete(req.params.id);
 

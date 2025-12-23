@@ -28,17 +28,17 @@ export default function VerifyOTP() {
     setLoading(true);
     try {
       const res = await fetch("http://localhost:5000/api/auth/verify-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp }),
-    });
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (res.ok) {
+      if (res.ok) {
         setMsg(data.message || "Email verified successfully!");
         setTimeout(() => {
-      navigate("/login");
+          navigate("/login");
         }, 1500);
       } else {
         setError(data.message || "Verification failed");
@@ -63,24 +63,23 @@ export default function VerifyOTP() {
         {email && <p className="text-center text-gray-600 text-sm mb-4">OTP sent to: {email}</p>}
 
         <form onSubmit={handleVerify}>
-        <input
-          className="w-full p-3 border mb-4 rounded-lg"
+          <input
+            className="w-full p-3 border mb-4 rounded-lg"
             placeholder="Enter 6-digit OTP"
             value={otp}
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
             maxLength={6}
             required
-        />
+          />
 
-        <button
+          <button
             type="submit"
             disabled={loading || !email}
-            className={`w-full text-white py-3 rounded-lg ${
-              loading || !email ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
-            }`}
+            className={`w-full text-white py-3 rounded-lg ${loading || !email ? "bg-gray-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"
+              }`}
           >
             {loading ? "Verifying..." : "Verify"}
-        </button>
+          </button>
         </form>
       </div>
     </div>

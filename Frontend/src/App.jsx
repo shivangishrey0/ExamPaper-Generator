@@ -18,12 +18,14 @@ import AdminCheckPaper from "./Admin/AdminCheckPaper"; // Import at top
 // Inside Routes
 // Landing Page
 import LandingPage from "./Pages/LandingPage";
+import LoginOptions from "./Pages/LoginOptions";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/login-options" element={<LoginOptions />} />
 
         {/* User Routes */}
         <Route path="/user/dashboard" element={<UserDashboard />} />
@@ -39,7 +41,7 @@ export default function App() {
         <Route path="/admin/dashboard" element={<AdminDashboard />} />
         <Route path="/admin/view-exam/:id" element={<AdminViewPaper />} />
         <Route path="/admin/check-paper/:examId" element={<AdminCheckPaper />} />
-        
+
       </Routes>
     </BrowserRouter>
   );

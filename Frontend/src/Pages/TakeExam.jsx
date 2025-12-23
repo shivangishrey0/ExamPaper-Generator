@@ -6,14 +6,19 @@ export default function TakeExam() {
   const { id } = useParams();
   const navigate = useNavigate();
   const webcamRef = useRef(null);
-  
+
   // States
   const [exam, setExam] = useState(null);
   const [step, setStep] = useState("instructions"); // 'instructions', 'test', 'submitted'
   const [answers, setAnswers] = useState({});
   const [cameraAllowed, setCameraAllowed] = useState(false);
   const [loading, setLoading] = useState(true);
-  
+  const studentId = localStorage.getItem("userId"); // Defined here for usage in render
+
+  // --- NEW: SEQUENTIAL NAVIGATION STATE ---
+  const [currentQIndex, setCurrentQIndex] = useState(0);
+  // ---------------------------------------
+
   // --- TIMER STATE ---
   const [timeLeft, setTimeLeft] = useState(null); // in seconds
   // ------------------
@@ -22,14 +27,14 @@ export default function TakeExam() {
   useEffect(() => {
     fetch(`/api/user/exam/${id}`)
       .then((res) => {
-        if(!res.ok) throw new Error("Exam not found");
+        if (!res.ok) throw new Error("Exam not found");
         return res.json();
       })
       .then((data) => {
         setExam(data);
         // Set initial time (convert minutes to seconds)
         if (data.duration && data.duration > 0) {
-            setTimeLeft(data.duration * 60);
+          setTimeLeft(data.duration * 60);
         }
         setLoading(false);
       })
@@ -42,17 +47,17 @@ export default function TakeExam() {
   // --- TIMER LOGIC ---
   useEffect(() => {
     if (step === "test" && timeLeft !== null) {
-        if (timeLeft <= 0) {
-            alert("⏳ Time is up! Submitting your exam automatically.");
-            handleSubmit(true); // Force submit
-            return;
-        }
+      if (timeLeft <= 0) {
+        alert("⏳ Time is up! Submitting your exam automatically.");
+        handleSubmit(true); // Force submit
+        return;
+      }
 
-        const timerId = setInterval(() => {
-            setTimeLeft((prev) => prev - 1);
-        }, 1000);
+      const timerId = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
 
-        return () => clearInterval(timerId);
+      return () => clearInterval(timerId);
     }
   }, [step, timeLeft]);
 
@@ -69,9 +74,22 @@ export default function TakeExam() {
     setStep("test");
   };
 
+  const handleNextQuestion = () => {
+    if (currentQIndex < exam.questions.length - 1) {
+      setCurrentQIndex(currentQIndex + 1);
+    }
+  };
+
+  const hasAnsweredCurrent = () => {
+    if (!exam) return false;
+    const currentQId = exam.questions[currentQIndex]._id;
+    const currentAns = answers[currentQId];
+    return currentAns && currentAns.trim().length > 0;
+  };
+
   const handleSubmit = async (autoSubmit = false) => {
     if (!autoSubmit && !window.confirm("Are you sure you want to submit?")) return;
-    
+
     const studentId = localStorage.getItem("userId");
     if (!studentId) {
       alert("User ID missing. Please Logout and Login again.");
@@ -80,19 +98,19 @@ export default function TakeExam() {
 
     try {
       const res = await fetch("/api/user/submit-exam", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            examId: id, 
-            answers,
-            studentId: studentId 
-          }),
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          examId: id,
+          answers,
+          studentId: studentId
+        }),
       });
 
       if (res.ok) {
         setStep("submitted");
       } else {
-        const errorData = await res.json(); 
+        const errorData = await res.json();
         alert("Submission failed: " + errorData.message);
       }
     } catch (error) {
@@ -108,7 +126,7 @@ export default function TakeExam() {
       <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
         <div className="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full">
           <h1 className="text-3xl font-bold text-blue-900 mb-4">Exam Instructions</h1>
-          
+
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 text-sm text-yellow-700">
             <p className="font-bold">⚠️ IMPORTANT RULES:</p>
             <ul className="list-disc ml-5 mt-2 space-y-1">
@@ -131,18 +149,17 @@ export default function TakeExam() {
             {!cameraAllowed && <p className="text-white z-10 font-bold">Waiting for camera permission...</p>}
           </div>
 
-          <button 
+          <button
             onClick={handleStartExam}
             disabled={!cameraAllowed}
-            className={`w-full py-4 rounded-lg font-bold text-lg transition ${
-              cameraAllowed 
-                ? "bg-green-600 text-white hover:bg-green-700 shadow-lg" 
-                : "bg-gray-300 text-gray-500 cursor-not-allowed"
-            }`}
+            className={`w-full py-4 rounded-lg font-bold text-lg transition ${cameraAllowed
+              ? "bg-green-600 text-white hover:bg-green-700 shadow-lg"
+              : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              }`}
           >
             {cameraAllowed ? "I Agree & Start Exam" : "Allow Camera to Enable Button"}
           </button>
-          
+
           <button onClick={() => navigate("/user/dashboard")} className="mt-4 w-full text-gray-500 text-sm hover:underline">
             Cancel and Return to Dashboard
           </button>
@@ -151,94 +168,168 @@ export default function TakeExam() {
     );
   }
 
-  // --- VIEW 2: THE EXAM INTERFACE ---
+  // --- VIEW 2: THE EXAM INTERFACE (SEQUENTIAL) ---
   if (step === "test") {
+    const q = exam.questions[currentQIndex]; // Get CURRENT question only
+    const isLastQuestion = currentQIndex === exam.questions.length - 1;
+    const canProceed = hasAnsweredCurrent();
+
     return (
-      <div className="min-h-screen bg-gray-50 flex flex-col md:flex-row relative">
-        
+      <div className="min-h-screen bg-[#FDFBF7] flex flex-col md:flex-row relative font-sans">
+
         {/* --- FLOATING TIMER --- */}
         {timeLeft !== null && (
-            <div className={`fixed top-4 right-4 z-[60] px-4 py-2 rounded-lg font-mono text-xl font-bold shadow-xl border-2 ${timeLeft < 60 ? 'bg-red-600 text-white border-red-800 animate-pulse' : 'bg-white text-blue-900 border-blue-900'}`}>
-                ⏳ {formatTime(timeLeft)}
-            </div>
+          <div className={`fixed top-4 right-4 z-[60] px-4 py-2 rounded-lg font-mono text-xl font-bold shadow-xl border-2 ${timeLeft < 60 ? 'bg-red-600 text-white border-red-800 animate-pulse' : 'bg-white text-stone-900 border-stone-900'}`}>
+            ⏳ {formatTime(timeLeft)}
+          </div>
         )}
         {/* ---------------------- */}
 
-        {/* Main Content: Questions */}
-        <div className="flex-1 p-8 overflow-y-auto h-screen">
-          <div className="flex justify-between items-center mb-6 border-b pb-4">
-            <h2 className="text-2xl font-bold text-blue-900">
-                {exam.title} <span className="text-sm text-gray-500 font-normal">({exam.subject})</span>
-            </h2>
-            <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-bold">
-                {exam.questions.length} Questions
+        {/* Main Content: Single Question */}
+        <div className="flex-1 p-8 md:p-16 flex flex-col h-screen overflow-hidden">
+
+          {/* Header */}
+          <div className="flex justify-between items-center mb-8 border-b border-stone-200 pb-4">
+            <div>
+              <h2 className="text-3xl font-bold text-stone-900 font-serif italic mb-1">{exam.title}</h2>
+              <p className="text-stone-500 text-sm font-medium uppercase tracking-wider">{exam.subject}</p>
+            </div>
+            <div className="bg-stone-900 text-amber-50 px-4 py-1.5 rounded-full text-sm font-bold shadow-lg shadow-stone-900/10">
+              Question {currentQIndex + 1} of {exam.questions.length}
             </div>
           </div>
 
-          <div className="space-y-8 pb-20">
-            {exam.questions.map((q, index) => (
-              <div key={q._id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex justify-between items-start mb-4">
-                  <p className="font-semibold text-lg text-gray-800 flex-1">
-                    <span className="text-blue-600 mr-2">Q{index + 1}.</span> {q.questionText}
-                  </p>
-                  <span className={`px-2 py-1 rounded text-xs font-bold ml-2 whitespace-nowrap
-                    ${q.questionType === 'mcq' ? 'bg-blue-100 text-blue-700' : 
-                      q.questionType === 'short' ? 'bg-purple-100 text-purple-700' : 
-                      'bg-indigo-100 text-indigo-700'}`}>
-                    {q.questionType === 'mcq' ? 'MCQ' : q.questionType === 'short' ? 'Short Answer' : 'Long Answer'}
-                  </span>
-                </div>
-                
+          {/* Question Card */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="bg-white p-8 md:p-12 rounded-3xl shadow-xl shadow-stone-200/50 border border-white animate-fade-in relative">
+
+              {/* Decoration */}
+              <div className="absolute top-0 right-0 p-6 opacity-5">
+                <span className="text-9xl font-serif italic font-black text-stone-900">?</span>
+              </div>
+
+              <div className="flex justify-between items-start mb-8 relative z-10">
+                <p className="font-bold text-2xl text-stone-800 leading-relaxed font-serif">
+                  {q.questionText}
+                </p>
+              </div>
+
+              <div className="relative z-10">
+                {/* MCQ Options */}
                 {q.questionType === 'mcq' && q.options && q.options.length > 0 && (
-                  <div className="space-y-2 pl-4">
+                  <div className="space-y-4 max-w-3xl">
                     {q.options.map((opt, i) => {
                       const optionLabel = String.fromCharCode(65 + i);
-                      const optionKey = `Option${optionLabel}`; 
+                      const optionKey = `Option${optionLabel}`;
+                      const isSelected = answers[q._id] === optionKey;
+
                       return (
-                        <label key={i} className={`flex items-center p-3 rounded border cursor-pointer hover:bg-blue-50 transition ${answers[q._id] === optionKey ? "bg-blue-100 border-blue-500 ring-1 ring-blue-500" : "border-gray-200"}`}>
-                          <input type="radio" name={q._id} value={optionKey} checked={answers[q._id] === optionKey} onChange={() => setAnswers({...answers, [q._id]: optionKey})} className="w-4 h-4 text-blue-600 mr-3" />
-                          <span className="font-bold mr-2 text-gray-400">({optionLabel})</span>
-                          {opt} 
+                        <label key={i} className={`flex items-center p-5 rounded-xl border-2 cursor-pointer transition-all duration-200 group ${isSelected ? "bg-stone-900 border-stone-900 text-white shadow-lg transform scale-[1.01]" : "bg-white border-stone-200 hover:border-amber-400 hover:bg-stone-50"}`}>
+                          <input
+                            type="radio"
+                            name={q._id}
+                            value={optionKey}
+                            checked={isSelected}
+                            onChange={() => setAnswers({ ...answers, [q._id]: optionKey })}
+                            className="hidden"
+                          />
+                          <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-5 font-bold text-lg transition-colors ${isSelected ? 'bg-white text-stone-900' : 'bg-stone-100 text-stone-500 group-hover:bg-amber-100 group-hover:text-amber-700'}`}>
+                            {optionLabel}
+                          </div>
+                          <span className={`text-lg font-medium ${isSelected ? 'text-white' : 'text-stone-700'}`}>{opt}</span>
                         </label>
                       );
                     })}
                   </div>
                 )}
 
+                {/* Short Answer Input */}
                 {q.questionType === 'short' && (
-                  <div className="pl-4">
-                    <textarea placeholder="Type your answer here..." className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none resize-none" rows="3" value={answers[q._id] || ''} onChange={(e) => setAnswers({...answers, [q._id]: e.target.value})} />
+                  <div className="max-w-3xl">
+                    <textarea
+                      placeholder="Type your precise answer here..."
+                      className="w-full p-6 text-lg border-2 border-stone-200 rounded-2xl focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none resize-none transition-all shadow-inner bg-stone-50 focus:bg-white"
+                      rows="4"
+                      value={answers[q._id] || ''}
+                      onChange={(e) => setAnswers({ ...answers, [q._id]: e.target.value })}
+                    />
                   </div>
                 )}
 
+                {/* Long Answer Input */}
                 {q.questionType === 'long' && (
-                  <div className="pl-4">
-                    <textarea placeholder="Write a detailed answer here..." className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none resize-y" rows="8" value={answers[q._id] || ''} onChange={(e) => setAnswers({...answers, [q._id]: e.target.value})} />
+                  <div className="max-w-3xl">
+                    <textarea
+                      placeholder="Write your detailed explanation here..."
+                      className="w-full p-6 text-lg border-2 border-stone-200 rounded-2xl focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none resize-y transition-all shadow-inner bg-stone-50 focus:bg-white min-h-[300px]"
+                      rows="12"
+                      value={answers[q._id] || ''}
+                      onChange={(e) => setAnswers({ ...answers, [q._id]: e.target.value })}
+                    />
                   </div>
                 )}
               </div>
-            ))}
+            </div>
           </div>
 
-          <div className="fixed bottom-0 left-0 w-full md:w-auto md:relative bg-white border-t p-4 flex justify-end">
-             <button onClick={() => handleSubmit(false)} className="bg-blue-900 text-white px-8 py-3 rounded-lg font-bold hover:bg-blue-800 shadow-lg">Submit Answer Sheet</button>
+          {/* Footer Controls */}
+          <div className="mt-8 flex justify-end items-center gap-4">
+            {/* Next / Submit Button */}
+            {!isLastQuestion ? (
+              <button
+                onClick={handleNextQuestion}
+                disabled={!canProceed}
+                className={`px-10 py-4 rounded-xl font-bold text-lg transition-all flex items-center gap-2 ${canProceed
+                  ? 'bg-stone-900 text-white hover:bg-emerald-600 shadow-xl shadow-stone-900/20 active:scale-[0.98]'
+                  : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                  }`}
+              >
+                Next Question <span>→</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => handleSubmit(false)}
+                disabled={!canProceed}
+                className={`px-10 py-4 rounded-xl font-bold text-lg transition-all flex items-center gap-2 ${canProceed
+                  ? 'bg-green-600 text-white hover:bg-green-700 shadow-xl shadow-green-600/30 animate-pulse'
+                  : 'bg-stone-200 text-stone-400 cursor-not-allowed'
+                  }`}
+              >
+                ✅ Finish & Submit
+              </button>
+            )}
           </div>
         </div>
 
         {/* Sidebar: Webcam Proctoring */}
-        <div className="w-full md:w-72 bg-black p-4 flex flex-col items-center md:h-screen sticky top-0 z-50">
-          <div className="w-full aspect-video bg-gray-900 rounded-lg overflow-hidden border-2 border-red-500 relative mb-4 shadow-lg">
-             <Webcam audio={false} ref={webcamRef} className="w-full h-full object-cover" />
-             <div className="absolute top-2 right-2 w-3 h-3 bg-red-600 rounded-full animate-pulse"></div>
-             <div className="absolute bottom-1 left-2 text-white text-[10px] bg-black bg-opacity-50 px-1 rounded">REC</div>
+        <div className="w-full md:w-80 bg-stone-900 p-6 flex flex-col items-center md:h-screen sticky top-0 z-50 border-l border-stone-800 shadow-2xl">
+          <div className="w-full aspect-video bg-stone-800 rounded-xl overflow-hidden border-2 border-red-500/50 relative mb-6 shadow-lg group">
+            <Webcam audio={false} ref={webcamRef} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-3 right-3 w-3 h-3 bg-red-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(239,68,68,0.8)]"></div>
+            <div className="absolute bottom-2 left-3 text-red-100 text-[10px] font-bold bg-red-900/80 px-2 py-0.5 rounded tracking-widest backdrop-blur-sm">REC ●</div>
           </div>
-          <p className="text-white text-xs text-center opacity-70"><span className="text-red-500 font-bold">PROCTORING ACTIVE</span><br/>Your session is being monitored.</p>
-          
-          <div className="mt-8 w-full grid grid-cols-5 gap-2">
-            {exam.questions.map((q, i) => (
-                <div key={i} className={`h-8 w-8 rounded flex items-center justify-center text-xs font-bold ${answers[q._id] ? 'bg-green-500 text-white' : 'bg-gray-700 text-gray-300'}`}>{i+1}</div>
-            ))}
+
+          <div className="text-center mb-8">
+            <p className="text-stone-400 text-xs font-bold uppercase tracking-widest mb-1">Proctoring Active</p>
+            <p className="text-stone-600 text-[10px]">Session ID: {studentId?.substring(0, 8)}...</p>
+          </div>
+
+          <div className="w-full">
+            <p className="text-stone-500 text-xs font-bold uppercase tracking-widest mb-4">Progress Tracker</p>
+            <div className="grid grid-cols-5 gap-3">
+              {exam.questions.map((q, i) => {
+                // Logic for coloring the grid
+                let statusColor = "bg-stone-800 text-stone-600 border-none"; // Future
+                if (i === currentQIndex) statusColor = "bg-amber-500 text-white border-2 border-amber-300 shadow-lg shadow-amber-500/40 scale-110 z-10"; // Current
+                else if (i < currentQIndex) statusColor = "bg-green-600 text-green-100"; // Completed (Assumed since we enforce linear)
+
+                return (
+                  <div key={i} className={`h-10 w-10 rounded-lg flex items-center justify-center text-sm font-bold transition-all ${statusColor}`}>
+                    {i + 1}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -248,13 +339,25 @@ export default function TakeExam() {
 
   // --- VIEW 3: SUCCESS SCREEN ---
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-      <div className="bg-white p-10 rounded-xl shadow-xl text-center max-w-md w-full border-t-8 border-green-500">
-        <div className="text-6xl mb-4">✅</div>
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Exam Submitted!</h1>
-        <p className="text-gray-600 mb-8">Your answers have been securely sent to the admin for grading.</p>
-        <button onClick={() => navigate("/user/dashboard")} className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 transition">Return to Dashboard</button>
+    <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4">
+      <div className="bg-white p-12 rounded-3xl shadow-2xl text-center max-w-lg w-full border border-stone-100 animate-slide-up">
+        <div className="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-4xl shadow-inner">
+          ✅
+        </div>
+        <h1 className="text-4xl font-bold text-stone-900 mb-4 font-serif italic">Exam Submitted!</h1>
+        <p className="text-stone-500 mb-10 text-lg leading-relaxed">
+          Your answers have been securely synced. <br />
+          You may now close this window or return to the dashboard.
+        </p>
+        <button onClick={() => navigate("/user/dashboard")} className="w-full bg-stone-900 text-white px-8 py-4 rounded-xl font-bold hover:bg-stone-800 transition shadow-lg shadow-stone-900/20">
+          Return to Dashboard
+        </button>
       </div>
     </div>
   );
 }
+const studentId = localStorage.getItem("userId"); // Used in render, defined outside component scope in original, checking placement.
+// Wait, studentId is used inside the component render for the sidebar.
+// I should define it inside the component or make sure it's available.
+// In my rewrite above, `const studentId` is in `handleSubmit` but referenced in the sidebar under `VIEW 2`.
+// I will ensure `const studentId = localStorage.getItem("userId");` is inside the component body or the specific view.

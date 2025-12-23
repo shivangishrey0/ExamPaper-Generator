@@ -3,24 +3,24 @@ import { useNavigate } from "react-router-dom";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("add"); 
+  const [activeTab, setActiveTab] = useState("add");
   const API_BASE = "http://localhost:5000/api/admin";
-  
-  // --- STATES ---
+
+  // --- STATES (Preserved) ---
   const [qData, setQData] = useState({
-    questionText: "", subject: "DBMS", difficulty: "Easy", 
+    questionText: "", subject: "DBMS", difficulty: "Easy",
     option1: "", option2: "", option3: "", option4: "", correctAnswer: ""
   });
   const [file, setFile] = useState(null);
   const [gData, setGData] = useState({
-    title: "", subject: "DBMS", paperType: "mcq_only", duration: 0, // Added duration
+    title: "", subject: "DBMS", paperType: "mcq_only", duration: 0,
     easyCount: 0, mediumCount: 0, hardCount: 0,
     mcqCount: 0, shortCount: 0, longCount: 0
   });
 
   const [exams, setExams] = useState([]);
 
-  // --- HANDLERS ---
+  // --- HANDLERS (Preserved) ---
   const handleAddQuestion = async () => {
     if (!qData.questionText.trim()) return alert("Please enter question text");
     if (!qData.correctAnswer.trim()) return alert("Please enter correct answer");
@@ -58,7 +58,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_BASE}/upload-questions`, { method: "POST", body: formData });
       const data = await res.json();
-      if (res.ok) { alert(data.message); setFile(null); } 
+      if (res.ok) { alert(data.message); setFile(null); }
       else { alert("Upload Failed: " + data.message); }
     } catch (error) { alert("Server Error during upload"); }
   };
@@ -66,20 +66,20 @@ export default function AdminDashboard() {
   const handleGenerate = async () => {
     if (!gData.title) return alert("Please enter an Exam Title");
     const payload = {
-        ...gData,
-        duration: Number(gData.duration) || 0, // Ensure number
-        easyCount: Number(gData.easyCount) || 0,
-        mediumCount: Number(gData.mediumCount) || 0,
-        hardCount: Number(gData.hardCount) || 0,
-        mcqCount: Number(gData.mcqCount) || 0,
-        shortCount: Number(gData.shortCount) || 0,
-        longCount: Number(gData.longCount) || 0,
+      ...gData,
+      duration: Number(gData.duration) || 0,
+      easyCount: Number(gData.easyCount) || 0,
+      mediumCount: Number(gData.mediumCount) || 0,
+      hardCount: Number(gData.hardCount) || 0,
+      mcqCount: Number(gData.mcqCount) || 0,
+      shortCount: Number(gData.shortCount) || 0,
+      longCount: Number(gData.longCount) || 0,
     };
     try {
       const res = await fetch(`${API_BASE}/generate-paper`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload), 
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (res.ok) { alert(`Success! Exam created with ${data.totalQuestions} questions.`); fetchExams(); setActiveTab("view"); }
@@ -88,10 +88,10 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteExam = async (examId) => {
-    if (!window.confirm("⚠️ Are you sure? This will delete the Exam AND its Questions.")) return;
+    if (!window.confirm("⚠️ Are you sure? This will delete the Exam structure. \n\n(Questions remain safely in your Question Bank)")) return;
     try {
       const res = await fetch(`${API_BASE}/exam/${examId}`, { method: "DELETE" });
-      if (res.ok) { alert("Exam and Questions deleted successfully!"); setExams(exams.filter((e) => e._id !== examId)); } 
+      if (res.ok) { alert("Exam and Questions deleted successfully!"); setExams(exams.filter((e) => e._id !== examId)); }
       else { alert("Failed to delete exam"); }
     } catch (error) { alert("Server error"); }
   };
@@ -100,128 +100,288 @@ export default function AdminDashboard() {
     if (!window.confirm("⚠️ DANGER: This will delete EVERY question. Are you sure?")) return;
     try {
       const res = await fetch(`${API_BASE}/delete-all-questions`, { method: "DELETE" });
-      if (res.ok) { alert("Database Cleared!"); window.location.reload(); } 
+      if (res.ok) { alert("Database Cleared!"); window.location.reload(); }
       else { alert("Failed to clear database"); }
     } catch (error) { alert("Server error"); }
   };
 
   const fetchExams = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/get-exams`);
-        const data = await res.json();
-        setExams(data);
-      } catch (err) { console.error("Error fetching exams"); }
+    try {
+      const res = await fetch(`${API_BASE}/get-exams`);
+      const data = await res.json();
+      setExams(data);
+    } catch (err) { console.error("Error fetching exams"); }
   };
 
-  useEffect(() => { if(activeTab === 'view') fetchExams(); }, [activeTab]);
+  useEffect(() => { if (activeTab === 'view') fetchExams(); }, [activeTab]);
+
+  // --- UI COMPONENTS ---
+  // Reusable themed input class
+  const inputClass = "w-full p-3 bg-white border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-stone-500/20 focus:border-stone-500 transition-all shadow-sm";
+  const labelClass = "block text-xs font-bold text-stone-500 uppercase tracking-wider mb-2";
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col relative">
-      <nav className="bg-blue-900 text-white p-4 shadow-md flex justify-between items-center sticky top-0 z-50">
-        <h1 className="text-xl font-bold">Admin Dashboard</h1>
-        <button onClick={() => navigate("/")} className="bg-red-500 px-4 py-2 rounded hover:bg-red-600 font-bold text-sm">Logout</button>
+    <div className="min-h-screen bg-[#FDFBF7] flex flex-col relative font-sans text-stone-800">
+
+      {/* Navbar */}
+      <nav className="bg-stone-900 text-amber-50 px-6 py-4 shadow-lg flex justify-between items-center sticky top-0 z-50">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-amber-100 rounded text-stone-900 flex items-center justify-center font-bold font-serif italic text-lg">A</div>
+          <h1 className="text-xl font-bold font-serif italic tracking-wide">Admin Dashboard</h1>
+        </div>
+        <button onClick={() => navigate("/")} className="bg-red-500/20 border border-red-500/30 text-red-200 px-5 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all font-bold text-sm uppercase tracking-wider">
+          Logout
+        </button>
       </nav>
 
-      <div className="flex flex-1">
-        <aside className="w-64 bg-white shadow-lg hidden md:flex flex-col fixed h-full pt-16 pb-4 overflow-y-auto">
-          <div className="p-4 space-y-2">
-            <button onClick={() => setActiveTab("add")} className={`w-full text-left p-3 rounded transition ${activeTab === "add" ? "bg-blue-100 text-blue-900 font-bold" : "hover:bg-gray-100"}`}>+ Add Question</button>
-            <button onClick={() => setActiveTab("upload")} className={`w-full text-left p-3 rounded transition ${activeTab === "upload" ? "bg-blue-100 text-blue-900 font-bold" : "hover:bg-gray-100"}`}>📂 Bulk Upload</button>
-            <button onClick={() => setActiveTab("generate")} className={`w-full text-left p-3 rounded transition ${activeTab === "generate" ? "bg-blue-100 text-blue-900 font-bold" : "hover:bg-gray-100"}`}>⚡ Generate Exam</button>
-            <button onClick={() => setActiveTab("view")} className={`w-full text-left p-3 rounded transition ${activeTab === "view" ? "bg-blue-100 text-blue-900 font-bold" : "hover:bg-gray-100"}`}>📄 View Exams</button>
-            <hr className="my-4 border-gray-200"/>
-             <button onClick={handleClearDatabase} className="w-full text-left p-3 rounded text-red-600 hover:bg-red-50 font-bold border border-red-200 text-sm">⚠️ Clear Database</button>
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <aside className="w-72 bg-white border-r border-stone-200 hidden md:flex flex-col shadow-[4px_0_24px_rgba(0,0,0,0.02)] h-[calc(100vh-64px)] overflow-y-auto">
+          <div className="p-6 space-y-3">
+            <p className="px-4 text-xs font-bold text-stone-400 uppercase tracking-widest mb-2">Management</p>
+            {[
+              { id: "add", label: "Add Question", icon: "+" },
+              { id: "upload", label: "Bulk Upload", icon: "📂" },
+              { id: "generate", label: "Generate Exam", icon: "⚡" },
+              { id: "view", label: "View Exams", icon: "📄" },
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`w-full text-left px-5 py-3.5 rounded-xl transition-all duration-300 flex items-center gap-3 font-medium ${activeTab === tab.id
+                  ? "bg-stone-900 text-white shadow-lg shadow-stone-900/20 translate-x-1"
+                  : "text-stone-600 hover:bg-stone-50 hover:text-stone-900"
+                  }`}
+              >
+                <span className="opacity-70">{tab.icon}</span> {tab.label}
+              </button>
+            ))}
+
+            <div className="pt-6 mt-6 border-t border-stone-100">
+              <p className="px-4 text-xs font-bold text-red-400 uppercase tracking-widest mb-2">Danger Zone</p>
+              <button onClick={handleClearDatabase} className="w-full text-left px-5 py-3 rounded-xl text-red-600 hover:bg-red-50 font-bold border border-red-100/50 hover:border-red-200 transition-all text-sm flex items-center gap-2">
+                <span>⚠️</span> Clear Database
+              </button>
+            </div>
           </div>
         </aside>
 
-        <main className="flex-1 p-8 ml-0 md:ml-64 overflow-y-auto min-h-[calc(100vh-64px)]">
-          {activeTab === "add" && (
-            <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto border-t-4 border-blue-900">
-              <h2 className="text-2xl font-bold mb-6 text-blue-900">Add New Question</h2>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <select className="border p-2 rounded" value={qData.subject} onChange={(e) => setQData({...qData, subject: e.target.value})}>
-                  <option value="DBMS">DBMS</option><option value="Operating System">Operating System</option><option value="Computer Networks">Computer Networks</option><option value="Algorithms">Algorithms</option>
-                </select>
-                <select className="border p-2 rounded" value={qData.difficulty} onChange={(e) => setQData({...qData, difficulty: e.target.value})}>
-                  <option>Easy</option><option>Medium</option><option>Hard</option>
-                </select>
-              </div>
-              <textarea placeholder="Enter Question Text" className="w-full border p-2 rounded mb-4 h-24" value={qData.questionText} onChange={(e) => setQData({...qData, questionText: e.target.value})}></textarea>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <input placeholder="Option A" className="border p-2 rounded" value={qData.option1} onChange={(e) => setQData({...qData, option1: e.target.value})} />
-                <input placeholder="Option B" className="border p-2 rounded" value={qData.option2} onChange={(e) => setQData({...qData, option2: e.target.value})} />
-                <input placeholder="Option C" className="border p-2 rounded" value={qData.option3} onChange={(e) => setQData({...qData, option3: e.target.value})} />
-                <input placeholder="Option D" className="border p-2 rounded" value={qData.option4} onChange={(e) => setQData({...qData, option4: e.target.value})} />
-              </div>
-              <input placeholder="Correct Answer" className="w-full border p-2 rounded mb-6 bg-green-50" value={qData.correctAnswer} onChange={(e) => setQData({...qData, correctAnswer: e.target.value})} />
-              <button onClick={handleAddQuestion} className="w-full bg-blue-900 text-white py-3 rounded font-bold hover:bg-blue-800">Save Question</button>
-            </div>
-          )}
+        {/* Main Content */}
+        <main className="flex-1 p-6 md:p-10 overflow-y-auto h-[calc(100vh-64px)] scroll-smooth">
 
-          {activeTab === "upload" && (
-            <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto border-t-4 border-green-900">
-                <h2 className="text-2xl font-bold mb-6 text-green-900">Upload Excel File</h2>
-                <input type="file" accept=".xlsx, .xls" className="w-full border p-3 rounded mb-6" onChange={(e) => setFile(e.target.files[0])} />
-                <button onClick={handleFileUpload} className="w-full bg-green-900 text-white py-3 rounded font-bold hover:bg-green-800">Upload Questions</button>
+          <div className="max-w-4xl mx-auto animate-fade-in">
+            {/* Header Description */}
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-stone-900 font-serif italic mb-2">
+                {activeTab === 'add' && 'Create New Question'}
+                {activeTab === 'upload' && 'Bulk Import'}
+                {activeTab === 'generate' && 'Exam Generator'}
+                {activeTab === 'view' && 'Exam Repository'}
+              </h2>
+              <p className="text-stone-500">
+                {activeTab === 'add' && 'Manually input individual questions into the bank.'}
+                {activeTab === 'upload' && 'Upload Excel sheets to populte the question bank quickly.'}
+                {activeTab === 'generate' && 'Configure and auto-generate balanced exam papers.'}
+                {activeTab === 'view' && 'Manage and review detailed status of generated exams.'}
+              </p>
             </div>
-          )}
 
-          {activeTab === "generate" && (
-            <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto border-t-4 border-blue-600">
-                <h2 className="text-2xl font-bold mb-4 text-blue-900">Auto-Generate Exam</h2>
-                <div className="mb-6 grid grid-cols-2 gap-4">
-                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Exam Title</label><input placeholder="e.g. Mid-Term 2024" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, title: e.target.value})} /></div>
-                    <div><label className="block text-xs font-bold text-gray-500 uppercase mb-1">Subject</label><select className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, subject: e.target.value})}><option value="DBMS">DBMS</option><option value="Operating System">Operating System</option><option value="Computer Networks">Computer Networks</option><option value="Algorithms">Algorithms</option></select></div>
+            {/* TABS CONTENT */}
+
+            {/* 1. Add Question */}
+            {activeTab === "add" && (
+              <div className="bg-white p-8 rounded-3xl shadow-xl shadow-stone-200/50 border border-white">
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  <div>
+                    <label className={labelClass}>Subject</label>
+                    <select className={inputClass} value={qData.subject} onChange={(e) => setQData({ ...qData, subject: e.target.value })}>
+                      <option value="DBMS">DBMS</option><option value="Operating System">Operating System</option><option value="Computer Networks">Computer Networks</option><option value="Algorithms">Algorithms</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Difficulty</label>
+                    <select className={inputClass} value={qData.difficulty} onChange={(e) => setQData({ ...qData, difficulty: e.target.value })}>
+                      <option>Easy</option><option>Medium</option><option>Hard</option>
+                    </select>
+                  </div>
                 </div>
 
-                {/* --- TIME DURATION INPUT --- */}
-                <div className="mb-6 bg-yellow-50 p-3 rounded border border-yellow-200">
-                    <label className="block text-sm font-bold text-yellow-800 mb-1">⏱️ Time Limit (Minutes)</label>
-                    <input 
-                        type="number" 
-                        placeholder="e.g. 30 (Leave 0 for Untimed)" 
-                        className="w-full border p-2 rounded focus:ring-2 focus:ring-yellow-400 outline-none" 
-                        onChange={(e) => setGData({...gData, duration: e.target.value})} 
-                    />
-                    <p className="text-xs text-yellow-600 mt-1">If set to 0, the exam will have no time limit.</p>
+                <div className="mb-6">
+                  <label className={labelClass}>Question Text</label>
+                  <textarea placeholder="Type your question here..." className={`${inputClass} h-32 resize-none`} value={qData.questionText} onChange={(e) => setQData({ ...qData, questionText: e.target.value })}></textarea>
                 </div>
-                {/* --------------------------- */}
 
-                <div className="mb-6"><label className="block text-sm font-bold text-gray-700 mb-2">Select Paper Pattern:</label><div className="grid grid-cols-3 gap-2">
-                    <button onClick={() => setGData({...gData, paperType: "mcq_only"})} className={`p-2 rounded border text-sm font-bold ${gData.paperType === "mcq_only" ? "bg-blue-600 text-white border-blue-600" : "bg-gray-50 text-gray-600"}`}>🔵 MCQ Only</button>
-                    <button onClick={() => setGData({...gData, paperType: "subjective_only"})} className={`p-2 rounded border text-sm font-bold ${gData.paperType === "subjective_only" ? "bg-orange-50 text-white border-orange-500 bg-orange-500" : "bg-gray-50 text-gray-600"}`}>🟠 Subjective Only</button>
-                    <button onClick={() => setGData({...gData, paperType: "mixed"})} className={`p-2 rounded border text-sm font-bold ${gData.paperType === "mixed" ? "bg-purple-600 text-white border-purple-600" : "bg-gray-50 text-gray-600"}`}>🟣 Mixed Paper</button>
-                </div></div>
-                {gData.paperType === "mcq_only" && (<div className="bg-blue-50 p-4 rounded border border-blue-100 mb-6"><div className="grid grid-cols-3 gap-4"><div><label className="text-xs font-bold">Easy</label><input type="number" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, easyCount: e.target.value})} /></div><div><label className="text-xs font-bold">Medium</label><input type="number" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, mediumCount: e.target.value})} /></div><div><label className="text-xs font-bold">Hard</label><input type="number" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, hardCount: e.target.value})} /></div></div></div>)}
-                {gData.paperType === "subjective_only" && (<div className="bg-orange-50 p-4 rounded border border-orange-100 mb-6"><div className="grid grid-cols-2 gap-4"><div><label className="text-xs font-bold">Short</label><input type="number" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, shortCount: e.target.value})} /></div><div><label className="text-xs font-bold">Long</label><input type="number" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, longCount: e.target.value})} /></div></div></div>)}
-                {gData.paperType === "mixed" && (<div className="bg-purple-50 p-4 rounded border border-purple-100 mb-6"><div className="grid grid-cols-3 gap-4"><div><label className="text-xs font-bold">MCQ</label><input type="number" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, mcqCount: e.target.value})} /></div><div><label className="text-xs font-bold">Short</label><input type="number" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, shortCount: e.target.value})} /></div><div><label className="text-xs font-bold">Long</label><input type="number" className="w-full border p-2 rounded" onChange={(e) => setGData({...gData, longCount: e.target.value})} /></div></div></div>)}
-                <button onClick={handleGenerate} className="w-full bg-blue-900 text-white py-3 rounded font-bold hover:bg-blue-800 shadow-lg">⚡ Generate Paper</button>
-            </div>
-          )}
-          
-           {activeTab === "view" && (
-             <div className="grid gap-4 pb-20">
-                 {exams.map((exam) => (
-                     <div key={exam._id} className="bg-white p-4 rounded shadow border-l-4 border-blue-900 flex justify-between items-center gap-4">
-                         <div className="flex-1">
-                            <h3 className="font-bold text-lg text-gray-800">{exam.title}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded font-bold uppercase">{exam.subject}</span>
-                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded font-bold">
-                                    {exam.duration ? `⏱️ ${exam.duration} mins` : "⏱️ Untimed"}
-                                </span>
-                            </div>
-                         </div>
-                         <div className="flex items-center gap-2">
-                            <button onClick={() => navigate(`/admin/view-exam/${exam._id}`)} className="bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-bold">View</button>
-                            <button onClick={() => navigate(`/admin/check-paper/${exam._id}`)} className="bg-yellow-500 text-white px-3 py-1.5 rounded text-sm font-bold">Results</button>
-                            <button onClick={() => handleDeleteExam(exam._id)} className="bg-red-500 text-white px-3 py-1.5 rounded text-sm font-bold">Delete</button>
-                            {!exam.isPublished && <button onClick={async () => { if(confirm("Publish?")) { await fetch(`${API_BASE}/publish/${exam._id}`, { method: "PUT" }); fetchExams(); } }} className="bg-green-600 text-white px-3 py-1.5 rounded text-sm font-bold">Publish</button>}
-                         </div>
-                     </div>
-                 ))}
-             </div>
-           )}
+                <div className="grid grid-cols-2 gap-6 mb-6">
+                  {['option1', 'option2', 'option3', 'option4'].map((opt, i) => (
+                    <div key={opt}>
+                      <label className="text-xs text-stone-400 font-bold mb-1 block">Option {String.fromCharCode(65 + i)}</label>
+                      <input placeholder={`Option ${String.fromCharCode(65 + i)}`} className={inputClass} value={qData[opt]} onChange={(e) => setQData({ ...qData, [opt]: e.target.value })} />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mb-8">
+                  <label className={labelClass}>Correct Answer</label>
+                  <input placeholder="Exact text of correct option" className={`${inputClass} bg-green-50/50 border-green-200 focus:ring-green-500/20`} value={qData.correctAnswer} onChange={(e) => setQData({ ...qData, correctAnswer: e.target.value })} />
+                </div>
+
+                <button onClick={handleAddQuestion} className="w-full bg-stone-900 text-white py-4 rounded-xl font-bold font-serif italic text-lg hover:bg-stone-800 shadow-lg shadow-stone-900/20 transition-all active:scale-[0.99]">
+                  Save Question Button
+                </button>
+              </div>
+            )}
+
+            {/* 2. Upload */}
+            {activeTab === "upload" && (
+              <div className="bg-white p-10 rounded-3xl shadow-xl shadow-stone-200/50 border border-white text-center">
+                <div className="w-20 h-20 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6 text-3xl">📂</div>
+                <h3 className="text-xl font-bold text-emerald-900 mb-2">Upload Excel File</h3>
+                <p className="text-stone-500 mb-8 max-w-sm mx-auto">Supports .xlsx and .xls formats. Ensure columns match the template format.</p>
+
+                <div className="max-w-md mx-auto relative border-2 border-dashed border-stone-300 rounded-2xl p-8 hover:bg-stone-50 transition-colors cursor-pointer group">
+                  <input type="file" accept=".xlsx, .xls" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onChange={(e) => setFile(e.target.files[0])} />
+                  <p className="text-stone-600 font-medium group-hover:text-stone-900 transition-colors">
+                    {file ? file.name : "Click to browse files"}
+                  </p>
+                </div>
+
+                <button onClick={handleFileUpload} className="mt-8 px-8 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all">
+                  Start Upload
+                </button>
+              </div>
+            )}
+
+            {/* 3. Generate Exam */}
+            {activeTab === "generate" && (
+              <div className="bg-white p-8 rounded-3xl shadow-xl shadow-stone-200/50 border border-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                  <div><label className={labelClass}>Exam Title</label><input placeholder="e.g. Final Semester Exam" className={inputClass} onChange={(e) => setGData({ ...gData, title: e.target.value })} /></div>
+                  <div>
+                    <label className={labelClass}>Subject</label>
+                    <select className={inputClass} onChange={(e) => setGData({ ...gData, subject: e.target.value })}>
+                      <option value="DBMS">DBMS</option><option value="Operating System">Operating System</option><option value="Computer Networks">Computer Networks</option><option value="Algorithms">Algorithms</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Time Duration */}
+                <div className="mb-8 bg-amber-50 p-6 rounded-2xl border border-amber-100">
+                  <label className="block text-sm font-bold text-amber-900 mb-2 font-serif italic">⏱️ Time Duration (Minutes)</label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 30 (0 for Untimed)"
+                    className="w-full border-none p-3 rounded-xl bg-white focus:ring-2 focus:ring-amber-400 outline-none shadow-sm text-amber-900 font-bold"
+                    onChange={(e) => setGData({ ...gData, duration: e.target.value })}
+                  />
+                  <p className="text-xs text-amber-700/70 mt-2 font-medium">Leave as 0 for no time limit.</p>
+                </div>
+
+                <div className="mb-8">
+                  <label className={labelClass}>Pattern Selection</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: 'mcq_only', label: 'MCQ Only', color: 'bg-blue-600 border-blue-600' },
+                      { id: 'subjective_only', label: 'Subjective', color: 'bg-orange-500 border-orange-500' },
+                      { id: 'mixed', label: 'Mixed Mode', color: 'bg-purple-600 border-purple-600' },
+                    ].map(type => (
+                      <button
+                        key={type.id}
+                        onClick={() => setGData({ ...gData, paperType: type.id })}
+                        className={`p-4 rounded-xl border-2 text-sm font-bold transition-all ${gData.paperType === type.id
+                          ? `${type.color} text-white shadow-md transform scale-[1.02]`
+                          : "bg-white border-stone-200 text-stone-500 hover:bg-stone-50"
+                          }`}
+                      >
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dynamic Inputs based on type */}
+                <div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 mb-8">
+                  <p className="text-xs font-bold text-stone-400 uppercase mb-4">Question Distribution</p>
+                  <div className="grid grid-cols-3 gap-4">
+                    {gData.paperType === "mcq_only" && (
+                      <>
+                        <div><label className="text-xs font-bold mb-1 block">Easy</label><input type="number" className={inputClass} onChange={(e) => setGData({ ...gData, easyCount: e.target.value })} /></div>
+                        <div><label className="text-xs font-bold mb-1 block">Medium</label><input type="number" className={inputClass} onChange={(e) => setGData({ ...gData, mediumCount: e.target.value })} /></div>
+                        <div><label className="text-xs font-bold mb-1 block">Hard</label><input type="number" className={inputClass} onChange={(e) => setGData({ ...gData, hardCount: e.target.value })} /></div>
+                      </>
+                    )}
+                    {gData.paperType === "subjective_only" && (
+                      <>
+                        <div className="col-span-1.5"><label className="text-xs font-bold mb-1 block">Short Answer</label><input type="number" className={inputClass} onChange={(e) => setGData({ ...gData, shortCount: e.target.value })} /></div>
+                        <div className="col-span-1.5"><label className="text-xs font-bold mb-1 block">Long Answer</label><input type="number" className={inputClass} onChange={(e) => setGData({ ...gData, longCount: e.target.value })} /></div>
+                      </>
+                    )}
+                    {gData.paperType === "mixed" && (
+                      <>
+                        <div><label className="text-xs font-bold mb-1 block">MCQ</label><input type="number" className={inputClass} onChange={(e) => setGData({ ...gData, mcqCount: e.target.value })} /></div>
+                        <div><label className="text-xs font-bold mb-1 block">Short</label><input type="number" className={inputClass} onChange={(e) => setGData({ ...gData, shortCount: e.target.value })} /></div>
+                        <div><label className="text-xs font-bold mb-1 block">Long</label><input type="number" className={inputClass} onChange={(e) => setGData({ ...gData, longCount: e.target.value })} /></div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <button onClick={handleGenerate} className="w-full bg-gradient-to-r from-stone-900 to-stone-800 text-white py-4 rounded-xl font-bold text-lg hover:shadow-xl hover:shadow-stone-900/20 transition-all active:scale-[0.99]">
+                  ⚡ Generate Paper
+                </button>
+              </div>
+            )}
+
+            {/* 4. View Exams */}
+            {activeTab === "view" && (
+              <div className="space-y-4 pb-20">
+                {exams.map((exam) => (
+                  <div key={exam._id} className="bg-white p-6 rounded-2xl shadow-sm border border-stone-100 hover:shadow-md transition-shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-4 group">
+                    <div>
+                      <h3 className="font-bold text-xl text-stone-800 font-serif italic group-hover:text-amber-700 transition-colors">{exam.title}</h3>
+                      <div className="flex flex-wrap items-center gap-3 mt-2">
+                        <span className="text-xs bg-stone-100 text-stone-600 px-3 py-1 rounded-full font-bold uppercase tracking-wide border border-stone-200">{exam.subject}</span>
+                        <span className="text-xs bg-amber-50 text-amber-800 px-3 py-1 rounded-full font-bold border border-amber-100">
+                          {exam.duration ? `⏱️ ${exam.duration} mins` : "⏱️ Untimed"}
+                        </span>
+                        {exam.isPublished ? (
+                          <span className="text-xs bg-green-50 text-green-700 px-2 py-1 rounded font-bold">Published</span>
+                        ) : (
+                          <span className="text-xs bg-stone-50 text-stone-400 px-2 py-1 rounded font-bold">Draft</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 w-full md:w-auto">
+                      <button onClick={() => navigate(`/admin/view-exam/${exam._id}`)} className="flex-1 md:flex-none bg-stone-100 text-stone-700 hover:bg-stone-200 px-4 py-2 rounded-lg text-sm font-bold transition-colors">View</button>
+                      <button onClick={() => navigate(`/admin/check-paper/${exam._id}`)} className="flex-1 md:flex-none bg-amber-100 text-amber-800 hover:bg-amber-200 px-4 py-2 rounded-lg text-sm font-bold transition-colors">Results</button>
+
+                      {!exam.isPublished && (
+                        <button
+                          onClick={async () => { if (confirm("Publish this exam for students to see?")) { await fetch(`${API_BASE}/publish/${exam._id}`, { method: "PUT" }); fetchExams(); } }}
+                          className="flex-1 md:flex-none bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-lg text-sm font-bold shadow-green-200 shadow-md transition-all"
+                        >
+                          Publish
+                        </button>
+                      )}
+
+                      <button onClick={() => handleDeleteExam(exam._id)} className="flex-1 md:flex-none p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Delete Exam">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+
+                {exams.length === 0 && (
+                  <div className="text-center py-20 bg-white rounded-3xl border-2 border-dashed border-stone-200">
+                    <p className="text-stone-400 font-bold text-lg">No exams found.</p>
+                    <button onClick={() => setActiveTab('generate')} className="text-amber-600 hover:text-amber-700 font-bold mt-2 hover:underline">Create One Now</button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>
