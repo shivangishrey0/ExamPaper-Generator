@@ -95,6 +95,7 @@ export default function AdminDashboard() {
       else { alert("Failed to delete exam"); }
     } catch (error) { alert("Server error"); }
   };
+// Admin Dashboard component – handles exam management flow
 
   const handleClearDatabase = async () => {
     if (!window.confirm("⚠️ DANGER: This will delete EVERY question. Are you sure?")) return;
