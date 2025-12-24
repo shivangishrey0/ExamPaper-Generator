@@ -41,7 +41,8 @@ export default function AdminDashboard() {
       });
       const data = await res.json();
       if (res.ok) {
-        alert("Question Added Successfully!");
+        alert("Question Added Successfully!");// proper formatiing
+
         setQData({ questionText: "", subject: "DBMS", difficulty: "Easy", option1: "", option2: "", option3: "", option4: "", correctAnswer: "" });
       } else {
         alert("Failed: " + (data.message || JSON.stringify(data)));
