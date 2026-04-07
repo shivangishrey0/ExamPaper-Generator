@@ -4,6 +4,9 @@ Backend/node_modules/
 dist/
 .env
 .env.local
+Backend/.env
+Backend/.env.*
+!Backend/.env.example
 .DS_Store
 npm-debug.log*
 yarn-debug.log*

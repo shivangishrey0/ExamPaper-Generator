@@ -147,8 +147,12 @@ export const generatePaper = async (req, res) => {
 
   // 1. Destructure 'duration' from the request body
   const { title, subject, paperType, duration, easyCount, mediumCount, hardCount, mcqCount, shortCount, longCount } = req.body;
+  console.log("📥 Received Payload:", JSON.stringify(req.body, null, 2));
 
-  if (!title || !subject) return res.status(400).json({ message: "Please provide Exam Title and Subject." });
+  if (!title || !subject) {
+    console.warn("⚠️ Missing Title or Subject");
+    return res.status(400).json({ message: "Please provide Exam Title and Subject." });
+  }
 
   const cleanSubject = subject.trim();
   const subjectRegex = new RegExp(`^${cleanSubject}$`, "i");
@@ -156,9 +160,12 @@ export const generatePaper = async (req, res) => {
 
   try {
     if (paperType === "mcq_only") {
+      console.log(`🔎 Searching for MCQs in Subject: '${cleanSubject}'`);
       const easyExcel = await Question.find({ subject: subjectRegex, questionType: /^mcq$/i, difficulty: /^(easy|simple)$/i });
       const mediumExcel = await Question.find({ subject: subjectRegex, questionType: /^mcq$/i, difficulty: /^(medium|avg)$/i });
       const hardExcel = await Question.find({ subject: subjectRegex, questionType: /^mcq$/i, difficulty: /^(hard|difficult)$/i });
+
+      console.log(`📊 Found MCQs - Easy: ${easyExcel.length}, Medium: ${mediumExcel.length}, Hard: ${hardExcel.length}`);
 
       questions = [
         ...selectRandomQuestions(easyExcel, Number(easyCount) || 0),
@@ -167,8 +174,11 @@ export const generatePaper = async (req, res) => {
       ];
     }
     else if (paperType === "subjective_only") {
+      console.log(`🔎 Searching for Subjective Questions in Subject: '${cleanSubject}'`);
       const shortsExcel = await Question.find({ subject: subjectRegex, questionType: /^short$/i });
       const longsExcel = await Question.find({ subject: subjectRegex, questionType: /^long$/i });
+
+      console.log(`📊 Found Subjective - Short: ${shortsExcel.length}, Long: ${longsExcel.length}`);
 
       questions = [
         ...selectRandomQuestions(shortsExcel, Number(shortCount) || 0),
@@ -176,9 +186,12 @@ export const generatePaper = async (req, res) => {
       ];
     }
     else if (paperType === "mixed") {
+      console.log(`🔎 Searching for Mixed Questions in Subject: '${cleanSubject}'`);
       const mcqsExcel = await Question.find({ subject: subjectRegex, questionType: /^mcq$/i });
       const shortsExcel = await Question.find({ subject: subjectRegex, questionType: /^short$/i });
       const longsExcel = await Question.find({ subject: subjectRegex, questionType: /^long$/i });
+
+      console.log(`📊 Found Mixed - MCQ: ${mcqsExcel.length}, Short: ${shortsExcel.length}, Long: ${longsExcel.length}`);
 
       questions = [
         ...selectRandomQuestions(mcqsExcel, Number(mcqCount) || 0),
@@ -187,7 +200,12 @@ export const generatePaper = async (req, res) => {
       ];
     }
 
-    if (questions.length === 0) return res.status(400).json({ message: "No questions found matching criteria." });
+    console.log(`✅ Selected Total Questions: ${questions.length}`);
+
+    if (questions.length === 0) {
+      console.warn("⚠️ No questions found matching criteria.");
+      return res.status(400).json({ message: "No questions found matching criteria. Check if database has questions for this subject/pattern." });
+    }
 
     // 2. Save the Exam with Duration
     const newExam = new Exam({
@@ -199,11 +217,12 @@ export const generatePaper = async (req, res) => {
     });
 
     await newExam.save();
+    console.log(` Exam Created Successfully: ${newExam._id}`);
     res.status(201).json({ message: `Exam '${title}' created!`, exam: newExam, totalQuestions: questions.length });
 
   } catch (error) {
-    console.error("GENERATOR ERROR:", error);
-    res.status(500).json({ message: "Server error during generation." });
+    console.error(" GENERATOR ERROR:", error);
+    res.status(500).json({ message: "Server error during generation.", error: error.message });
   }
 };
 

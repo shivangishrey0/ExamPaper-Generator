@@ -31,25 +31,25 @@ export const registerStart = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     const otp = generateOTP();
-    
+
     // Save user with OTP
-    const user = new User({ 
-        username: username.trim(), 
-        email: email.trim().toLowerCase(), 
-        password: hashedPassword, 
-        otp, 
-        otpExpiry: otpExpiry() 
+    const user = new User({
+      username: username.trim(),
+      email: email.trim().toLowerCase(),
+      password: hashedPassword,
+      otp,
+      otpExpiry: otpExpiry()
     });
-    
+
     await user.save();
-    
+
     // Send Email
     try {
       await sendMail(email.trim().toLowerCase(), "Verify Your Account", `<p>Your verification OTP is: <b>${otp}</b></p>`);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
     }
-    
+
     res.json({ message: "OTP sent successfully" });
   } catch (err) {
     console.error("Register Error:", err);
@@ -64,19 +64,19 @@ export const verifyEmail = async (req, res) => {
   try {
     const { email, otp } = req.body;
     const user = await User.findOne({ email });
-    
+
     if (!user) return res.status(400).json({ message: "User not found" });
     if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
     if (user.otpExpiry && user.otpExpiry < Date.now()) return res.status(400).json({ message: "OTP has expired" });
 
-    user.isVerified = true; 
-    user.otp = undefined; 
+    user.isVerified = true;
+    user.otp = undefined;
     user.otpExpiry = undefined;
     await user.save();
-    
+
     res.json({ message: "Email Verified Successfully" });
-  } catch(err) { 
-      res.status(500).json({message: "Server Error"}); 
+  } catch (err) {
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
@@ -94,12 +94,12 @@ export const login = async (req, res) => {
     const secret = process.env.JWT_SECRET || "fallback_secret";
     const token = jwt.sign({ id: user._id }, secret, { expiresIn: "7d" });
 
-    return res.status(200).json({ 
+    return res.status(200).json({
       message: "Login successful",
-      result: user, 
+      result: user,
       token,
-      userId: user._id, 
-      username: user.username 
+      userId: user._id,
+      username: user.username
     });
   } catch (error) {
     return res.status(500).json({ message: "Server Error" });
@@ -115,7 +115,7 @@ export const forgotPassword = async (req, res) => {
 
     const otp = generateOTP();
     user.otp = otp;
-    user.otpExpiry = otpExpiry(); 
+    user.otpExpiry = otpExpiry();
     await user.save();
 
     await sendMail(email, "Reset Password Request", `
@@ -139,7 +139,7 @@ export const resetPassword = async (req, res) => {
     if (user.otpExpiry && user.otpExpiry < Date.now()) return res.status(400).json({ message: "OTP Expired" });
 
     user.password = await bcrypt.hash(newPassword, 10);
-    user.otp = undefined; 
+    user.otp = undefined;
     user.otpExpiry = undefined;
     await user.save();
 
@@ -152,12 +152,12 @@ export const resetPassword = async (req, res) => {
 // --- GET EXAMS ---
 export const getAvailableExams = async (req, res) => {
   try {
-    const { studentId } = req.query; 
+    const { studentId } = req.query;
     const exams = await Exam.find({ isPublished: true }).sort({ createdAt: -1 });
 
     if (!studentId) {
-        const cleanExams = exams.map(e => ({ ...e.toObject(), status: "not_attempted" }));
-        return res.json(cleanExams);
+      const cleanExams = exams.map(e => ({ ...e.toObject(), status: "not_attempted" }));
+      return res.json(cleanExams);
     }
 
     const examsWithStatus = await Promise.all(exams.map(async (exam) => {
@@ -197,40 +197,40 @@ export const getExamById = async (req, res) => {
 // --- HELPER: NORMALIZE TEXT ---
 const normalizeAnswer = (text) => {
   if (!text) return "";
-  return String(text).trim().toLowerCase().replace(/\s+/g, " "); 
+  return String(text).trim().toLowerCase().replace(/\s+/g, " ");
 };
 
 // --- SUBMIT EXAM ---
 export const submitExam = async (req, res) => {
-  const { examId, answers, studentId } = req.body; 
-  
+  const { examId, answers, studentId } = req.body;
+
   try {
     const exam = await Exam.findById(examId).populate("questions");
     if (!exam) return res.status(404).json({ message: "Exam not found" });
-    
+
     // Check double submission
     const existingSubmission = await Submission.findOne({ examId, studentId });
     if (existingSubmission) return res.status(400).json({ message: "Already submitted." });
 
     let calculatedScore = 0;
-    console.log("--- INITIAL AUTO-GRADING START ---"); 
+    console.log("--- INITIAL AUTO-GRADING START ---");
 
     exam.questions.forEach((question) => {
       const qId = question._id.toString();
-      let studentAns = answers[qId]; 
+      let studentAns = answers[qId];
 
-      // 🔥 Option Key Correction Logic
+      // Option Key Correction Logic
       if (studentAns && typeof studentAns === 'string' && studentAns.toLowerCase().startsWith("option")) {
-         const cleanKey = studentAns.toLowerCase().replace("option", "").trim(); 
-         let index = -1;
-         if (cleanKey === "a" || cleanKey === "1") index = 0;
-         else if (cleanKey === "b" || cleanKey === "2") index = 1;
-         else if (cleanKey === "c" || cleanKey === "3") index = 2;
-         else if (cleanKey === "d" || cleanKey === "4") index = 3;
+        const cleanKey = studentAns.toLowerCase().replace("option", "").trim();
+        let index = -1;
+        if (cleanKey === "a" || cleanKey === "1") index = 0;
+        else if (cleanKey === "b" || cleanKey === "2") index = 1;
+        else if (cleanKey === "c" || cleanKey === "3") index = 2;
+        else if (cleanKey === "d" || cleanKey === "4") index = 3;
 
-         if (index !== -1 && question.options && question.options[index]) {
-             studentAns = question.options[index];
-         }
+        if (index !== -1 && question.options && question.options[index]) {
+          studentAns = question.options[index];
+        }
       }
 
       if (question.correctAnswer) {
@@ -238,27 +238,24 @@ export const submitExam = async (req, res) => {
         const cleanCorrect = normalizeAnswer(question.correctAnswer);
 
         if (cleanStudent === cleanCorrect) {
-          calculatedScore += 1; 
+          calculatedScore += 1;
         }
       }
     });
 
-    // --- IMPORTANT CHANGE HERE ---
-    // We force isGraded: false regardless of exam type.
-    // This ensures the status stays "submitted" (Pending) until Admin clicks Publish.
-    
-    const newSubmission = new Submission({ 
-      examId, 
-      studentId, 
-      answers, 
+
+    const newSubmission = new Submission({
+      examId,
+      studentId,
+      answers,
       score: calculatedScore, // Saves the tentative score
       isGraded: false // <--- ALWAYS FALSE Initially
     });
 
     await newSubmission.save();
-    
-    res.json({ 
-      message: "Exam submitted successfully! Waiting for admin review.", 
+
+    res.json({
+      message: "Exam submitted successfully! Waiting for admin review.",
       score: calculatedScore,
       total: exam.questions.length
     });

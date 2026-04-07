@@ -5,9 +5,8 @@ const examSchema = new mongoose.Schema({
   subject: { type: String, required: true },
   totalMarks: { type: Number, default: 100 },
   questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question" }],
-  
-  // --- THIS WAS MISSING ---
-  isPublished: { type: Boolean, default: false }, 
+
+  isPublished: { type: Boolean, default: false },
   // ------------------------
   duration: { type: Number, default: 0 }, // 0 = Untimed, Number = Minutes
 

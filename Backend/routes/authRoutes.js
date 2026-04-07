@@ -5,7 +5,6 @@ import {
   login, 
   forgotPassword, 
   resetPassword,
-  // IMPORT THE NEW FUNCTIONS HERE:
   getAvailableExams,
   getExamById,
   submitExam
