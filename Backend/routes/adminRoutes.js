@@ -14,6 +14,7 @@ import {
   deleteExam,
   deleteAllQuestions // <--- ADDED THIS IMPORT
 } from "../controllers/adminController.js";
+import { authenticateToken, requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -22,6 +23,8 @@ const upload = multer({ dest: "uploads/" });
 
 // --- AUTH ---
 router.post("/login", adminLogin);
+
+router.use(authenticateToken, requireRole("admin"));
 
 // --- QUESTION MANAGEMENT ---
 router.post("/add-question", addQuestion);

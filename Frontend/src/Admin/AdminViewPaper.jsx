@@ -5,10 +5,11 @@ export default function AdminViewPaper() {
   const { id } = useParams(); // Get the Exam ID from the URL
   const navigate = useNavigate();
   const [exam, setExam] = useState(null);
+  const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || ""}` });
 
   useEffect(() => {
     // Fetch the specific exam details
-    fetch(`/api/admin/exam/${id}`)
+    fetch(`/api/teacher/exam/${id}`, { headers: authHeaders() })
       .then((res) => res.json())
       .then((data) => setExam(data))
       .catch((err) => alert("Failed to load exam"));
@@ -35,7 +36,7 @@ export default function AdminViewPaper() {
               🖨️ Print / Save PDF
             </button>
             <button
-              onClick={() => navigate("/admin/dashboard")}
+              onClick={() => navigate("/teacher/dashboard")}
               className="bg-blue-900 text-white px-6 py-2 rounded-lg font-bold hover:bg-blue-800 transition"
             >
               ← Back

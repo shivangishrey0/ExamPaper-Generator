@@ -4,6 +4,7 @@ const examSchema = new mongoose.Schema({
   title: { type: String, required: true },
   subject: { type: String, required: true },
   totalMarks: { type: Number, default: 100 },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Question" }],
 
   isPublished: { type: Boolean, default: false },

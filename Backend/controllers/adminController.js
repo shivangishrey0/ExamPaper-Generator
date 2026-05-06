@@ -4,14 +4,30 @@ import xlsx from "xlsx";
 import fs from "fs";
 import Submission from "../models/submission.js";
 import dotenv from "dotenv";
+import jwt from "jsonwebtoken";
 
 dotenv.config();
+
+const getRequestUserId = (req) => req.user?.userId || req.user?.id;
+
+const canAccessExam = (req, exam) => {
+  if (!exam) return false;
+  if (req.user?.role === "superadmin") return true;
+  const ownerId = exam.createdBy?.toString();
+  return ownerId === String(getRequestUserId(req));
+};
 
 // --- 1. ADMIN LOGIN ---
 export const adminLogin = (req, res) => {
   const { username, password } = req.body;
   if (username === "admin" && password === "admin123") {
-    return res.json({ message: "Admin login success" });
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({ message: "JWT secret is not configured" });
+    }
+
+    const token = jwt.sign({ username, role: "admin" }, secret, { expiresIn: "7d" });
+    return res.json({ message: "Admin login success", token, role: "admin" });
   }
   return res.status(400).json({ message: "Invalid admin credentials" });
 };
@@ -211,6 +227,7 @@ export const generatePaper = async (req, res) => {
     const newExam = new Exam({
       title,
       subject: cleanSubject,
+      createdBy: getRequestUserId(req),
       questions: questions.map(q => q._id),
       isPublished: false,
       duration: Number(duration) || 0 // Saves duration (or 0 if empty)
@@ -229,7 +246,8 @@ export const generatePaper = async (req, res) => {
 // --- 5. GET EXAMS ---
 export const getExams = async (req, res) => {
   try {
-    const exams = await Exam.find().populate("questions").sort({ createdAt: -1 });
+    const query = req.user?.role === "superadmin" ? {} : { createdBy: getRequestUserId(req) };
+    const exams = await Exam.find(query).populate("questions").sort({ createdAt: -1 });
     res.json(exams);
   } catch (error) { res.status(500).json({ message: "Error fetching exams" }); }
 };
@@ -239,6 +257,9 @@ export const getExamById = async (req, res) => {
   try {
     const exam = await Exam.findById(req.params.id).populate("questions");
     if (!exam) return res.status(404).json({ message: "Exam not found" });
+    if (!canAccessExam(req, exam)) {
+      return res.status(403).json({ message: "Forbidden: exam access denied" });
+    }
     res.json(exam);
   } catch (error) { res.status(500).json({ message: "Error loading exam" }); }
 };
@@ -246,6 +267,12 @@ export const getExamById = async (req, res) => {
 // --- 7. PUBLISH EXAM ---
 export const publishExam = async (req, res) => {
   try {
+    const exam = await Exam.findById(req.params.id);
+    if (!exam) return res.status(404).json({ message: "Exam not found" });
+    if (!canAccessExam(req, exam)) {
+      return res.status(403).json({ message: "Forbidden: exam access denied" });
+    }
+
     const updatedExam = await Exam.findByIdAndUpdate(req.params.id, { isPublished: true }, { new: true });
     res.json({ message: "Exam is LIVE!", exam: updatedExam });
   } catch (error) { res.status(500).json({ message: "Error publishing exam" }); }
@@ -255,6 +282,12 @@ export const publishExam = async (req, res) => {
 
 export const getSubmissions = async (req, res) => {
   try {
+    const exam = await Exam.findById(req.params.examId);
+    if (!exam) return res.status(404).json({ message: "Exam not found" });
+    if (!canAccessExam(req, exam)) {
+      return res.status(403).json({ message: "Forbidden: exam access denied" });
+    }
+
     const submissions = await Submission.find({ examId: req.params.examId }).populate("studentId", "username email").populate("examId", "title");
     res.json(submissions);
   } catch (error) { res.status(500).json({ message: "Error fetching submissions" }); }
@@ -274,6 +307,9 @@ export const gradeSubmission = async (req, res) => {
     // 2. Fetch the exam to get the correct answers
     const exam = await Exam.findById(submission.examId).populate("questions");
     if (!exam) return res.status(404).json({ message: "Exam not found" });
+    if (!canAccessExam(req, exam)) {
+      return res.status(403).json({ message: "Forbidden: exam access denied" });
+    }
 
     console.log("--- SERVER SIDE GRADING START ---");
     let serverCalculatedScore = 0;
@@ -329,6 +365,9 @@ export const deleteExam = async (req, res) => {
   try {
     const exam = await Exam.findById(req.params.id);
     if (!exam) return res.status(404).json({ message: "Not found" });
+    if (!canAccessExam(req, exam)) {
+      return res.status(403).json({ message: "Forbidden: exam access denied" });
+    }
 
     // NOTE: We do NOT delete questions here anymore. 
     console.log(`Deleting Exam ${exam.title} (${req.params.id}) - QUESTIONS PRESERVED`);

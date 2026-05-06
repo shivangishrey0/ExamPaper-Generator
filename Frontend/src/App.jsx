@@ -1,24 +1,25 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-// Admin Pages
-import AdminLogin from "./Admin/AdminLogin";
-import AdminDashboard from "./Admin/AdminDashboard";
+// Teacher/SuperAdmin Pages
+import TeacherDashboard from "./Admin/TeacherDashboard";
 import AdminViewPaper from "./Admin/AdminViewPaper";
+import SuperAdminDashboard from "./Admin/SuperAdminDashboard";
 
 // User Pages
-import UserDashboard from "./User/UserDashboard.jsx"; // <--- FIXED HERE
+import UserDashboard from "./User/UserDashboard.jsx";
 import Register from "./User/Register";
 import VerifyOTP from "./User/VerifyOTP";
 import Login from "./User/Login";
 import ForgotPassword from "./User/ForgotPassword";
 import ResetPassword from "./User/ResetPassword";
 import TakeExam from "./Pages/TakeExam";
-import AdminCheckPaper from "./Admin/AdminCheckPaper"; // Import at top
+import AdminCheckPaper from "./Admin/AdminCheckPaper";
 
 // Inside Routes
 // Landing Page
 import LandingPage from "./Pages/LandingPage";
 import LoginOptions from "./Pages/LoginOptions";
+import RequireAuth from "./Components/RequireAuth";
 
 export default function App() {
   return (
@@ -26,21 +27,29 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/login-options" element={<LoginOptions />} />
-
-        {/* User Routes */}
-        <Route path="/user/dashboard" element={<UserDashboard />} />
-        <Route path="/user/exam/:id" element={<TakeExam />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/verify-otp" element={<VerifyOTP />} />
-        <Route path="/login" element={<Login />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
 
-        {/* Admin Routes */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/view-exam/:id" element={<AdminViewPaper />} />
-        <Route path="/admin/check-paper/:examId" element={<AdminCheckPaper />} />
+        {/* Student Routes */}
+        <Route element={<RequireAuth allowedRoles={["student"]} redirectTo="/login" />}>
+          <Route path="/user/dashboard" element={<UserDashboard />} />
+          <Route path="/user/exam/:id" element={<TakeExam />} />
+        </Route>
+
+        {/* Teacher Routes */}
+        <Route element={<RequireAuth allowedRoles={["teacher", "superadmin"]} redirectTo="/login" />}>
+          <Route path="/teacher/dashboard" element={<TeacherDashboard />} />
+          <Route path="/teacher/view-exam/:id" element={<AdminViewPaper />} />
+          <Route path="/teacher/check-paper/:examId" element={<AdminCheckPaper />} />
+        </Route>
+
+        {/* SuperAdmin Routes */}
+        <Route element={<RequireAuth allowedRoles={["superadmin"]} requiredPermissions={["manage_users"]} redirectTo="/login" />}>
+          <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
+        </Route>
 
       </Routes>
     </BrowserRouter>

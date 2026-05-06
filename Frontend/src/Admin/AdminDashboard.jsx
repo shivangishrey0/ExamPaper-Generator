@@ -5,6 +5,9 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("add");
   const API_BASE = "http://localhost:5000/api/admin";
+  const authHeaders = () => ({
+    Authorization: `Bearer ${localStorage.getItem("adminToken") || ""}`
+  });
 
   // --- STATES (Preserved) ---
   const [qData, setQData] = useState({
@@ -36,7 +39,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_BASE}/add-question`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -57,7 +60,7 @@ export default function AdminDashboard() {
     const formData = new FormData();
     formData.append("file", file);
     try {
-      const res = await fetch(`${API_BASE}/upload-questions`, { method: "POST", body: formData });
+      const res = await fetch(`${API_BASE}/upload-questions`, { method: "POST", headers: authHeaders(), body: formData });
       const data = await res.json();
       if (res.ok) { alert(data.message); setFile(null); }
       else { alert("Upload Failed: " + data.message); }
@@ -79,7 +82,7 @@ export default function AdminDashboard() {
     try {
       const res = await fetch(`${API_BASE}/generate-paper`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -91,7 +94,7 @@ export default function AdminDashboard() {
   const handleDeleteExam = async (examId) => {
     if (!window.confirm("⚠️ Are you sure? This will delete the Exam structure. \n\n(Questions remain safely in your Question Bank)")) return;
     try {
-      const res = await fetch(`${API_BASE}/exam/${examId}`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/exam/${examId}`, { method: "DELETE", headers: authHeaders() });
       if (res.ok) { alert("Exam and Questions deleted successfully!"); setExams(exams.filter((e) => e._id !== examId)); }
       else { alert("Failed to delete exam"); }
     } catch (error) { alert("Server error"); }
@@ -101,7 +104,7 @@ export default function AdminDashboard() {
   const handleClearDatabase = async () => {
     if (!window.confirm("⚠️ DANGER: This will delete EVERY question. Are you sure?")) return;
     try {
-      const res = await fetch(`${API_BASE}/delete-all-questions`, { method: "DELETE" });
+      const res = await fetch(`${API_BASE}/delete-all-questions`, { method: "DELETE", headers: authHeaders() });
       if (res.ok) { alert("Database Cleared!"); window.location.reload(); }
       else { alert("Failed to clear database"); }
     } catch (error) { alert("Server error"); }
@@ -109,7 +112,7 @@ export default function AdminDashboard() {
 
   const fetchExams = async () => {
     try {
-      const res = await fetch(`${API_BASE}/get-exams`);
+      const res = await fetch(`${API_BASE}/get-exams`, { headers: authHeaders() });
       const data = await res.json();
       setExams(data);
     } catch (err) { console.error("Error fetching exams"); }
@@ -131,7 +134,16 @@ export default function AdminDashboard() {
           <div className="w-8 h-8 bg-amber-100 rounded text-stone-900 flex items-center justify-center font-bold font-serif italic text-lg">A</div>
           <h1 className="text-xl font-bold font-serif italic tracking-wide">Admin Dashboard</h1>
         </div>
-        <button onClick={() => navigate("/")} className="bg-red-500/20 border border-red-500/30 text-red-200 px-5 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all font-bold text-sm uppercase tracking-wider">
+        <button
+          onClick={() => {
+            localStorage.removeItem("adminToken");
+            localStorage.removeItem("adminAuth");
+            localStorage.removeItem("role");
+            localStorage.removeItem("adminUsername");
+            navigate("/");
+          }}
+          className="bg-red-500/20 border border-red-500/30 text-red-200 px-5 py-2 rounded-lg hover:bg-red-500 hover:text-white transition-all font-bold text-sm uppercase tracking-wider"
+        >
           Logout
         </button>
       </nav>
@@ -359,7 +371,7 @@ export default function AdminDashboard() {
 
                       {!exam.isPublished && (
                         <button
-                          onClick={async () => { if (confirm("Publish this exam for students to see?")) { await fetch(`${API_BASE}/publish/${exam._id}`, { method: "PUT" }); fetchExams(); } }}
+                          onClick={async () => { if (confirm("Publish this exam for students to see?")) { await fetch(`${API_BASE}/publish/${exam._id}`, { method: "PUT", headers: authHeaders() }); fetchExams(); } }}
                           className="flex-1 md:flex-none bg-green-600 text-white hover:bg-green-700 px-4 py-2 rounded-lg text-sm font-bold shadow-green-200 shadow-md transition-all"
                         >
                           Publish

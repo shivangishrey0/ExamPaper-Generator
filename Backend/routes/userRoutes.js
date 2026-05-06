@@ -4,8 +4,11 @@ import {
   getExamById,
   submitExam
 } from "../controllers/authController.js"; // Importing from authController where you put the logic
+import { authenticateToken, requireRole } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+router.use(authenticateToken, requireRole("user"));
 
 // Matches: /api/user/exams
 router.get("/exams", getAvailableExams);

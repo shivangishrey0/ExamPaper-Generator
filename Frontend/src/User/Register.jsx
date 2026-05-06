@@ -9,6 +9,7 @@ export default function Register() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("student");
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -34,10 +35,10 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:5000/api/auth/register-start", {
+      const res = await fetch("http://localhost:5000/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), email: email.trim(), password }),
+        body: JSON.stringify({ username: username.trim(), email: email.trim(), password, role }),
       });
 
       const data = await res.json();
@@ -119,6 +120,15 @@ export default function Register() {
               required
               minLength={6}
             />
+
+            <select
+              className="w-full p-4 bg-white/80 border border-stone-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 transition-all shadow-sm"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
+              <option value="student">Student</option>
+              <option value="teacher">Teacher</option>
+            </select>
 
             <button
               type="submit"

@@ -4,11 +4,13 @@ dotenv.config();
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import { seedSuperAdmin } from "./config/seedSuperAdmin.js";
 
 // Routes
-import authRoutes from "./routes/authRoutes.js";
-import adminRoutes from "./routes/adminRoutes.js"; 
-import userRoutes from "./routes/UserRoutes.js";
+import authRoutes from "./routes/auth.js";
+import adminRoutes from "./routes/admin.js";
+import teacherRoutes from "./routes/teacher.js";
+import studentRoutes from "./routes/student.js";
 
 const app = express();
 
@@ -23,14 +25,17 @@ app.use(express.json());
 
 // --- 2. FIXED ROUTES (This was the main issue!) ---
 
-// Mount Auth Routes to /api/auth (So frontend /api/auth/login works)
+// Public auth routes
 app.use("/api/auth", authRoutes); 
 
-// Mount Admin Routes
+// Superadmin routes
 app.use("/api/admin", adminRoutes);
 
-// Mount User Routes (For exams)
-app.use("/api/user", userRoutes);
+// Teacher routes (paper creation, publish, grading)
+app.use("/api/teacher", teacherRoutes);
+
+// Student routes (take exam, own submissions)
+app.use("/api/student", studentRoutes);
 
 // Root Check
 app.get("/", (req, res) => {
@@ -40,7 +45,10 @@ app.get("/", (req, res) => {
 // CONNECT MONGODB
 mongoose
   .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
+  .then(async () => {
+    console.log("MongoDB Connected");
+    await seedSuperAdmin();
+  })
   .catch((err) => console.log("DB Error:", err));
 
 const PORT = process.env.PORT || 5000;

@@ -5,11 +5,27 @@ import { generateOTP, otpExpiry } from "../utils/otp.js";
 import { sendMail } from "../utils/mailer.js";
 import Exam from "../models/Exam.js";
 import Submission from "../models/submission.js";
+import { getPermissionsForRole } from "../utils/permissions.js";
+
+const getRequestUserId = (req) => req.user?.userId || req.user?.id;
+
+const buildAuthResponse = (user, token) => {
+  const permissions = getPermissionsForRole(user.role);
+  return {
+    message: "Login successful",
+    token,
+    userId: user._id,
+    name: user.username,
+    role: user.role,
+    permissions
+  };
+};
 
 // --- REGISTER ---
-export const registerStart = async (req, res) => {
+export const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, role } = req.body;
+    const normalizedRole = String(role || "student").toLowerCase();
 
     // Validation
     if (!username || !username.trim()) {
@@ -20,6 +36,9 @@ export const registerStart = async (req, res) => {
     }
     if (!password || password.length < 6) {
       return res.status(400).json({ message: "Password must be at least 6 characters" });
+    }
+    if (!["teacher", "student"].includes(normalizedRole)) {
+      return res.status(400).json({ message: "Role must be teacher or student" });
     }
 
     // Check if email already exists
@@ -37,6 +56,7 @@ export const registerStart = async (req, res) => {
       username: username.trim(),
       email: email.trim().toLowerCase(),
       password: hashedPassword,
+      role: normalizedRole,
       otp,
       otpExpiry: otpExpiry()
     });
@@ -58,6 +78,9 @@ export const registerStart = async (req, res) => {
     res.status(500).json({ message: "Server error: " + err.message });
   }
 };
+
+// Backward compatibility with existing route naming.
+export const registerStart = register;
 
 // --- VERIFY ---
 export const verifyEmail = async (req, res) => {
@@ -84,23 +107,27 @@ export const verifyEmail = async (req, res) => {
 export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: String(email || "").trim().toLowerCase() });
     if (!user) return res.status(400).json({ message: "User not found" });
+    if (!user.isActive) return res.status(403).json({ message: "Account is deactivated" });
     if (!user.isVerified) return res.status(400).json({ message: "Email not verified" });
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Incorrect password" });
 
-    const secret = process.env.JWT_SECRET || "fallback_secret";
-    const token = jwt.sign({ id: user._id }, secret, { expiresIn: "7d" });
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      return res.status(500).json({ message: "JWT secret is not configured" });
+    }
 
-    return res.status(200).json({
-      message: "Login successful",
-      result: user,
-      token,
-      userId: user._id,
-      username: user.username
-    });
+    const permissions = getPermissionsForRole(user.role);
+    const token = jwt.sign(
+      { userId: user._id, name: user.username, role: user.role, permissions },
+      secret,
+      { expiresIn: "7d" }
+    );
+
+    return res.status(200).json(buildAuthResponse(user, token));
   } catch (error) {
     return res.status(500).json({ message: "Server Error" });
   }
@@ -152,13 +179,10 @@ export const resetPassword = async (req, res) => {
 // --- GET EXAMS ---
 export const getAvailableExams = async (req, res) => {
   try {
-    const { studentId } = req.query;
-    const exams = await Exam.find({ isPublished: true }).sort({ createdAt: -1 });
+    const studentId = getRequestUserId(req);
+    const exams = await Exam.find({ isPublished: true }).populate("questions").sort({ createdAt: -1 });
 
-    if (!studentId) {
-      const cleanExams = exams.map(e => ({ ...e.toObject(), status: "not_attempted" }));
-      return res.json(cleanExams);
-    }
+    if (!studentId) return res.status(401).json({ message: "Unauthorized" });
 
     const examsWithStatus = await Promise.all(exams.map(async (exam) => {
       try {
@@ -186,6 +210,7 @@ export const getAvailableExams = async (req, res) => {
 // --- GET SINGLE EXAM ---
 export const getExamById = async (req, res) => {
   try {
+    if (!getRequestUserId(req)) return res.status(401).json({ message: "Unauthorized" });
     const exam = await Exam.findById(req.params.id).populate("questions");
     if (!exam) return res.status(404).json({ message: "Exam not found" });
     res.json(exam);
@@ -202,9 +227,11 @@ const normalizeAnswer = (text) => {
 
 // --- SUBMIT EXAM ---
 export const submitExam = async (req, res) => {
-  const { examId, answers, studentId } = req.body;
+  const { examId, answers } = req.body;
+  const studentId = getRequestUserId(req);
 
   try {
+    if (!studentId) return res.status(401).json({ message: "Unauthorized" });
     const exam = await Exam.findById(examId).populate("questions");
     if (!exam) return res.status(404).json({ message: "Exam not found" });
 

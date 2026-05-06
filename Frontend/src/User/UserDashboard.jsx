@@ -1,20 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../Components/AuthContext";
 
 export default function UserDashboard() {
     const navigate = useNavigate();
+    const { clearSession } = useAuth();
     const [exams, setExams] = useState([]);
     const [loading, setLoading] = useState(true);
+    const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || ""}` });
 
     useEffect(() => {
-        const userId = localStorage.getItem("userId");
-
-        // Safety check for ID
-        const url = userId
-            ? `/api/user/exams?studentId=${userId}`
-            : `/api/user/exams`;
-
-        fetch(url)
+        fetch(`/api/student/exams`, { headers: authHeaders() })
             .then((res) => {
                 if (!res.ok) throw new Error("Failed to fetch");
                 return res.json();
@@ -30,7 +26,7 @@ export default function UserDashboard() {
     }, []);
 
     const handleLogout = () => {
-        localStorage.clear();
+        clearSession();
         navigate("/login");
     };
 

@@ -20,14 +20,24 @@ export default function AdminLogin() {
   }, [images.length]);
 
   const handleAdminLogin = () => {
-    const adminUser = "admin";
-    const adminPass = "admin123";
+    fetch("http://localhost:5000/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    })
+      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+      .then(({ ok, data }) => {
+        if (!ok) {
+          setMsg(data.message || "Incorrect credentials.");
+          return;
+        }
 
-    if (username === adminUser && password === adminPass) {
-      navigate("/admin/dashboard");
-    } else {
-      setMsg("Incorrect credentials.");
-    }
+        localStorage.setItem("adminToken", data.token);
+        localStorage.setItem("role", "admin");
+        localStorage.setItem("adminUsername", username);
+        navigate("/admin/dashboard");
+      })
+      .catch(() => setMsg("Server error during admin login."));
   };
 
   return (

@@ -25,7 +25,9 @@ export default function TakeExam() {
 
   // Fetch Exam Data
   useEffect(() => {
-    fetch(`/api/user/exam/${id}`)
+    fetch(`/api/student/exam/${id}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` }
+    })
       .then((res) => {
         if (!res.ok) throw new Error("Exam not found");
         return res.json();
@@ -90,20 +92,16 @@ export default function TakeExam() {
   const handleSubmit = async (autoSubmit = false) => {
     if (!autoSubmit && !window.confirm("Are you sure you want to submit?")) return;
 
-    const studentId = localStorage.getItem("userId");
-    if (!studentId) {
-      alert("User ID missing. Please Logout and Login again.");
-      return;
-    }
-
     try {
-      const res = await fetch("/api/user/submit-exam", {
+      const res = await fetch("/api/student/submit-exam", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token") || ""}`
+        },
         body: JSON.stringify({
           examId: id,
-          answers,
-          studentId: studentId
+          answers
         }),
       });
 
@@ -356,8 +354,3 @@ export default function TakeExam() {
     </div>
   );
 }
-const studentId = localStorage.getItem("userId"); // Used in render, defined outside component scope in original, checking placement.
-// Wait, studentId is used inside the component render for the sidebar.
-// I should define it inside the component or make sure it's available.
-// In my rewrite above, `const studentId` is in `handleSubmit` but referenced in the sidebar under `VIEW 2`.
-// I will ensure `const studentId = localStorage.getItem("userId");` is inside the component body or the specific view.
