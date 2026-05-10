@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import TeacherDashboard from "./Admin/TeacherDashboard";
 import AdminViewPaper from "./Admin/AdminViewPaper";
 import SuperAdminDashboard from "./Admin/SuperAdminDashboard";
+import AdminCheckPaper from "./Admin/AdminCheckPaper";
 
 // User Pages
 import UserDashboard from "./User/UserDashboard.jsx";
@@ -12,19 +13,19 @@ import VerifyOTP from "./User/VerifyOTP";
 import Login from "./User/Login";
 import ForgotPassword from "./User/ForgotPassword";
 import ResetPassword from "./User/ResetPassword";
-import TakeExam from "./Pages/TakeExam";
-import AdminCheckPaper from "./Admin/AdminCheckPaper";
+import SetPassword from "./User/SetPassword";   // ← NEW
 
-// Inside Routes
-// Landing Page
+// Pages
 import LandingPage from "./Pages/LandingPage";
 import LoginOptions from "./Pages/LoginOptions";
+import TakeExam from "./Pages/TakeExam";
 import RequireAuth from "./Components/RequireAuth";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login-options" element={<LoginOptions />} />
         <Route path="/login" element={<Login />} />
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="/verify-otp" element={<VerifyOTP />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/set-password" element={<SetPassword />} />  {/* ← NEW */}
 
         {/* Student Routes */}
         <Route element={<RequireAuth allowedRoles={["student"]} redirectTo="/login" />}>
@@ -50,7 +52,6 @@ export default function App() {
         <Route element={<RequireAuth allowedRoles={["superadmin"]} requiredPermissions={["manage_users"]} redirectTo="/login" />}>
           <Route path="/superadmin/dashboard" element={<SuperAdminDashboard />} />
         </Route>
-
       </Routes>
     </BrowserRouter>
   );

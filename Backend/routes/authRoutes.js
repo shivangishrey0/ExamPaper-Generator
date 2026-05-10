@@ -1,27 +1,32 @@
 import express from "express";
-import { 
-  registerStart, 
-  verifyEmail, 
-  login, 
-  forgotPassword, 
+import {
+  register,
+  verifyEmail,
+  login,
+  forgotPassword,
   resetPassword,
   getAvailableExams,
   getExamById,
-  submitExam
+  submitExam,
 } from "../controllers/authController.js";
+import { setPassword } from "../controllers/superAdminController.js";
+import { verifyToken } from "../middleware/rbac.js";
+import { setPassword } from "../controllers/superAdminController.js"
 
 const router = express.Router();
 
-// --- Auth Routes ---
-router.post("/register-start", registerStart);
-router.post("/verify-email", verifyEmail);
+// Public routes
+router.post("/register", register);
+router.post("/verify-otp", verifyEmail);
 router.post("/login", login);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
+router.post("/set-password", setPassword);   // ← NEW: invite flow
 
-// --- Student Exam Routes (Now connected to authController) ---
-router.get("/user/exams", getAvailableExams);       // Matches frontend fetch("/api/user/exams")
-router.get("/user/exam/:id", getExamById);          // Matches frontend fetch("/api/user/exam/:id")
-router.post("/user/submit-exam", submitExam);       // Matches frontend submit
+// Protected student routes
+router.get("/exams", verifyToken, getAvailableExams);
+router.get("/exam/:id", verifyToken, getExamById);
+router.post("/submit-exam", verifyToken, submitExam);
+router.post("/set-password", setPassword);
 
 export default router;

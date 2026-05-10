@@ -12,12 +12,13 @@ import adminRoutes from "./routes/admin.js";
 import teacherRoutes from "./routes/teacher.js";
 import studentRoutes from "./routes/student.js";
 
+
 const app = express();
 
 // --- 1. FIXED CORS (Allow Frontend to talk to Backend) ---
 app.use(cors({
   origin: "http://localhost:5173", // Allow your Frontend
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
   credentials: true
 }));
 
@@ -29,7 +30,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes); 
 
 // Superadmin routes
-app.use("/api/admin", adminRoutes);
+app.use("/api/superadmin", adminRoutes);
 
 // Teacher routes (paper creation, publish, grading)
 app.use("/api/teacher", teacherRoutes);
