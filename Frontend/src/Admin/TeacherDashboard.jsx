@@ -46,7 +46,7 @@ export default function TeacherDashboard({ embeddedMode = false }) {
       const data = await res.json();
       setExams(data.exams);
       setExamTotal(data.total);
-      setExamTotalPages(data.totalPages);
+      setExamTotalPages(data.totalPages); 
     }
     setExamLoading(false);
   }, [examPage, examSearch, auth.token]);
