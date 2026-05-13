@@ -4,6 +4,7 @@ dotenv.config();
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import rateLimit from "express-rate-limit";  // ← ADD THIS
 import { seedSuperAdmin } from "./config/seedSuperAdmin.js";
 
 // Routes
@@ -12,10 +13,9 @@ import adminRoutes from "./routes/admin.js";
 import teacherRoutes from "./routes/teacher.js";
 import studentRoutes from "./routes/student.js";
 
-
 const app = express();
 
-// --- 1. FIXED CORS (Allow Frontend to talk to Backend) ---
+// --- CORS ---
 app.use(cors({
   origin: process.env.FRONTEND_URL,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
@@ -24,21 +24,38 @@ app.use(cors({
 
 app.use(express.json());
 
-// --- 2. FIXED ROUTES (This was the main issue!) ---
+// --- RATE LIMITING ---  ← ADD THIS BLOCK
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 10,                    // max 10 requests per 15 min
+  message: { message: "Too many attempts. Please try again after 15 minutes." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-// Public auth routes
-app.use("/api/auth", authRoutes); 
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  max: 100,                   // max 100 requests per 15 min
+  message: { message: "Too many requests. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
-// Superadmin routes
+// Apply general limit to all routes
+app.use(generalLimiter);
+
+// Apply strict limit to auth routes only
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/forgot-password", authLimiter);
+// ---------------------
+
+// --- ROUTES ---
+app.use("/api/auth", authRoutes);
 app.use("/api/superadmin", adminRoutes);
-
-// Teacher routes (paper creation, publish, grading)
 app.use("/api/teacher", teacherRoutes);
-
-// Student routes (take exam, own submissions)
 app.use("/api/student", studentRoutes);
 
-// Root Check
 app.get("/", (req, res) => {
   res.send("Backend Running...");
 });
