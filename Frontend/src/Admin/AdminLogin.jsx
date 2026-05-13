@@ -20,7 +20,7 @@ export default function AdminLogin() {
   }, [images.length]);
 
   const handleAdminLogin = () => {
-    fetch("http://localhost:5000/api/admin/login", {
+    fetch(`${import.meta.env.VITE_API_URL}/api/admin/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
