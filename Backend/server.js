@@ -17,8 +17,8 @@ const app = express();
 
 // --- 1. FIXED CORS (Allow Frontend to talk to Backend) ---
 app.use(cors({
-  origin: "http://localhost:5173", // Allow your Frontend
-  methods: ["GET", "POST", "PUT", "DELETE","PATCH"],
+  origin: process.env.FRONTEND_URL,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
 }));
 

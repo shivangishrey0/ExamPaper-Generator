@@ -5,6 +5,7 @@ const LIMIT = 8;
 
 export default function ManageUsers() {
   const { auth } = useAuth();
+  const API_BASE = `${import.meta.env.VITE_API_URL}/api/superadmin`;
 
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -32,7 +33,7 @@ export default function ManageUsers() {
       ...(search && { search }),
       ...(roleFilter && { role: roleFilter }),
     });
-    const res = await fetch(`/api/superadmin/users?${params}`, {
+    const res = await fetch(`${API_BASE}/users?${params}`, {
       headers: { Authorization: `Bearer ${auth.token}` },
     });
     if (res.ok) {
@@ -53,7 +54,7 @@ export default function ManageUsers() {
   const handleInvite = async (e) => {
     e.preventDefault();
     setCreating(true);
-    const res = await fetch("/api/superadmin/invite", {
+    const res = await fetch(`${API_BASE}/invite`, {
       method: "POST",
       headers: headers(),
       body: JSON.stringify(form),
@@ -69,7 +70,7 @@ export default function ManageUsers() {
   };
 
   const resendInvite = async (id) => {
-    const res = await fetch(`/api/superadmin/users/${id}/resend-invite`, {
+    const res = await fetch(`${API_BASE}/users/${id}/resend-invite`, {
       method: "POST",
       headers: { Authorization: `Bearer ${auth.token}` },
     });
@@ -79,14 +80,14 @@ export default function ManageUsers() {
 
   const deactivate = async (id) => {
     if (!confirm("Deactivate this user?")) return;
-    await fetch(`/api/superadmin/users/${id}/deactivate`, {
+    await fetch(`${API_BASE}/users/${id}/deactivate`, {
       method: "PATCH", headers: { Authorization: `Bearer ${auth.token}` },
     });
     loadUsers();
   };
 
   const activate = async (id) => {
-    await fetch(`/api/superadmin/users/${id}/activate`, {
+    await fetch(`${API_BASE}/users/${id}/activate`, {
       method: "PATCH", headers: { Authorization: `Bearer ${auth.token}` },
     });
     loadUsers();
@@ -94,7 +95,7 @@ export default function ManageUsers() {
 
   const deleteUser = async (id) => {
     if (!confirm("Permanently delete this user?")) return;
-    await fetch(`/api/superadmin/users/${id}`, {
+    await fetch(`${API_BASE}/users/${id}`, {
       method: "DELETE", headers: { Authorization: `Bearer ${auth.token}` },
     });
     if (users.length === 1 && page > 1) setPage(p => p - 1);

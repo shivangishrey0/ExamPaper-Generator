@@ -7,10 +7,11 @@ export default function AdminReviewSubmission() {
   const [submission, setSubmission] = useState(null);
   const [manualMarks, setManualMarks] = useState({});
   const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("adminToken") || ""}` });
+  const API_BASE = `${import.meta.env.VITE_API_URL}/api/admin`;
 
   useEffect(() => {
     // Use a relative path to let Vite's proxy handle the port (5000 vs 5173)
-    fetch(`http://localhost:5000/api/admin/submission/${id}`, { headers: authHeaders() })
+    fetch(`${API_BASE}/submission/${id}`, { headers: authHeaders() })
       .then((res) => {
         if (!res.ok) throw new Error(`Server responded with ${res.status}`);
         return res.json();
@@ -21,7 +22,7 @@ export default function AdminReviewSubmission() {
 
   const handleSaveGrades = async () => {
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/grade-submission/${id}`, {
+      const res = await fetch(`${API_BASE}/grade-submission/${id}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

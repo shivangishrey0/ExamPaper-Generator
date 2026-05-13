@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("add");
-  const API_BASE = "http://localhost:5000/api/admin";
+  const API_BASE = `${import.meta.env.VITE_API_URL}/api/admin`;
   const authHeaders = () => ({
     Authorization: `Bearer ${localStorage.getItem("adminToken") || ""}`
   });
