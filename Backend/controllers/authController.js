@@ -21,6 +21,22 @@ const buildAuthResponse = (user, token) => {
   };
 };
 
+export const resolveLoginUser = async ({ email, username }) => {
+  const normalizedEmail = String(email || "").trim().toLowerCase();
+  const normalizedUsername = String(username || "").trim();
+
+  if (normalizedEmail) {
+    const byEmail = await User.findOne({ email: normalizedEmail });
+    if (byEmail) return byEmail;
+  }
+
+  if (normalizedUsername) {
+    return User.findOne({ username: normalizedUsername });
+  }
+
+  return null;
+};
+
 // --- REGISTER ---
 export const register = async (req, res) => {
   try {
@@ -106,11 +122,13 @@ export const verifyEmail = async (req, res) => {
 // --- LOGIN ---
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const user = await User.findOne({ email: String(email || "").trim().toLowerCase() });
+    const { email, username, password } = req.body;
+    const user = await resolveLoginUser({ email, username });
+
     if (!user) return res.status(400).json({ message: "User not found" });
     if (!user.isActive) return res.status(403).json({ message: "Account is deactivated" });
     if (!user.isVerified) return res.status(400).json({ message: "Email not verified" });
+    if (!user.password) return res.status(400).json({ message: "Password is not set for this account. Please use the invite flow." });
 
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Incorrect password" });
@@ -129,9 +147,12 @@ export const login = async (req, res) => {
 
     return res.status(200).json(buildAuthResponse(user, token));
   } catch (error) {
+    console.error("Login error:", error);
     return res.status(500).json({ message: "Server Error" });
   }
 };
+
+export const adminLogin = login;
 
 // --- FORGOT PASSWORD ---
 export const forgotPassword = async (req, res) => {

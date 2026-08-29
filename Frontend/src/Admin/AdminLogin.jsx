@@ -19,25 +19,36 @@ export default function AdminLogin() {
     return () => clearInterval(interval);
   }, [images.length]);
 
-  const handleAdminLogin = () => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/admin/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    })
-      .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
-      .then(({ ok, data }) => {
-        if (!ok) {
-          setMsg(data.message || "Incorrect credentials.");
-          return;
-        }
+  const handleAdminLogin = async () => {
+    try {
+      const payload = {
+        username: username.trim(),
+        email: username.includes("@") ? username.trim().toLowerCase() : "",
+        password,
+      };
 
-        localStorage.setItem("adminToken", data.token);
-        localStorage.setItem("role", "admin");
-        localStorage.setItem("adminUsername", username);
-        navigate("/admin/dashboard");
-      })
-      .catch(() => setMsg("Server error during admin login."));
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setMsg(data.message || "Incorrect credentials.");
+        return;
+      }
+
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("role", data.role);
+      localStorage.setItem("userId", data.userId);
+      localStorage.setItem("name", data.name);
+      localStorage.setItem("permissions", JSON.stringify(data.permissions || []));
+      navigate(data.role === "superadmin" ? "/superadmin/dashboard" : "/teacher/dashboard");
+    } catch {
+      setMsg("Server error during admin login.");
+    }
   };
 
   return (

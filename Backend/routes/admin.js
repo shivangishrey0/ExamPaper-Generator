@@ -1,4 +1,5 @@
 import express from "express";
+import { login } from "../controllers/authController.js";
 import {
   inviteUser,
   resendInvite,
@@ -10,6 +11,8 @@ import {
 import { verifyToken, requireRole, requirePermission } from "../middleware/rbac.js";
 
 const router = express.Router();
+
+router.post("/login", login);
 
 router.use(verifyToken, requireRole("superadmin"), requirePermission("manage_users"));
 

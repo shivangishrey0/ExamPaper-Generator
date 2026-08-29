@@ -4,7 +4,7 @@ dotenv.config();
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
-import rateLimit from "express-rate-limit";  // ← ADD THIS
+import rateLimit from "express-rate-limit";
 import { seedSuperAdmin } from "./config/seedSuperAdmin.js";
 
 // Routes
@@ -16,8 +16,20 @@ import studentRoutes from "./routes/student.js";
 const app = express();
 
 // --- CORS ---
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:3000",
+].filter(Boolean);
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error("Not allowed by CORS"));
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   credentials: true
 }));
@@ -52,6 +64,7 @@ app.use("/api/auth/forgot-password", authLimiter);
 
 // --- ROUTES ---
 app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
 app.use("/api/superadmin", adminRoutes);
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/student", studentRoutes);
