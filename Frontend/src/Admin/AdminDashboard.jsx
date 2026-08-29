@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { API_URL } from "../api";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("add");
-  const API_BASE = `${import.meta.env.VITE_API_URL}/api/admin`;
+  const API_BASE = `${API_URL}/api/admin`;
   const authHeaders = () => ({
     Authorization: `Bearer ${localStorage.getItem("adminToken") || ""}`
   });

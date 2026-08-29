@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { authUrl } from "../api";
 
 export default function ResetPassword() {
   const location = useLocation();
@@ -11,7 +12,7 @@ export default function ResetPassword() {
   const [msg, setMsg] = useState("");
 
   const handleReset = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/reset-password`, {
+    const res = await fetch(authUrl("/reset-password"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: String(email || "").trim().toLowerCase(), otp, newPassword: newPass }),

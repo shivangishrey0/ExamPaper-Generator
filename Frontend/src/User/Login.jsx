@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../Components/AuthContext";
+import { authUrl } from "../api";
  
 const roleConfig = {
   superadmin: {
@@ -54,10 +55,13 @@ export default function Login() {
     setError("");
  
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+      const res = await fetch(authUrl("/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          email: formData.email.trim().toLowerCase(),
+          password: formData.password,
+        }),
       });
  
       const data = await res.json();

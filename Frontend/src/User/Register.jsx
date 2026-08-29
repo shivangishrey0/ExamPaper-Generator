@@ -3,6 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import imgA from "../assets/img2.jpg";
 import imgB from "../assets/img3.jpg";
 import imgC from "../assets/img4.jpg";
+import { authUrl } from "../api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -35,10 +36,11 @@ export default function Register() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/register`, {
+      const normalizedEmail = email.trim().toLowerCase();
+      const res = await fetch(authUrl("/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: username.trim(), email: email.trim(), password, role }),
+        body: JSON.stringify({ username: username.trim(), email: normalizedEmail, password, role }),
       });
 
       const data = await res.json();
@@ -46,7 +48,7 @@ export default function Register() {
       if (res.ok) {
         setMsg(data.message || "OTP sent successfully");
         setTimeout(() => {
-          navigate("/verify-otp", { state: { email: email.trim() } });
+          navigate("/verify-otp", { state: { email: normalizedEmail } });
         }, 1000);
       } else {
         setError(data.message || "Registration failed");

@@ -1,5 +1,9 @@
 import dotenv from "dotenv";
-dotenv.config();
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, ".env") });
 
 import express from "express";
 import mongoose from "mongoose";
@@ -16,37 +20,31 @@ import studentRoutes from "./routes/student.js";
 const app = express();
 
 // --- CORS ---
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://localhost:3000",
-  "https://interactive-assessment-platform.vercel.app",
-].filter(Boolean);
-
+// Allow local Vite, the production Vercel app, and preview deployments.
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
-      return callback(null, true);
-    }
-
-    return callback(null, true);
+    callback(null, true);
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
+app.options("/{*path}", cors(corsOptions));
 app.use(express.json());
 
 // --- RATE LIMITING ---  ← ADD THIS BLOCK
+const skipPreflight = (req) => req.method === "OPTIONS";
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,  // 15 minutes
   max: 10,                    // max 10 requests per 15 min
   message: { message: "Too many attempts. Please try again after 15 minutes." },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipPreflight,
 });
 
 const generalLimiter = rateLimit({
@@ -55,6 +53,7 @@ const generalLimiter = rateLimit({
   message: { message: "Too many requests. Please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipPreflight,
 });
 
 // Apply general limit to all routes

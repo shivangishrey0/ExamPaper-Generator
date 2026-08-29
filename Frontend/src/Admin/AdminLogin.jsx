@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import imgA from "../assets/img7.jpg";
 import imgB from "../assets/img1.jpg";
+import { authUrl } from "../api";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export default function AdminLogin() {
         password,
       };
 
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/login`, {
+      const res = await fetch(authUrl("/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

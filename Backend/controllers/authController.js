@@ -42,12 +42,14 @@ export const register = async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
     const normalizedRole = String(role || "student").toLowerCase();
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const normalizedUsername = String(username || "").trim();
 
     // Validation
-    if (!username || !username.trim()) {
+    if (!normalizedUsername) {
       return res.status(400).json({ message: "Username is required" });
     }
-    if (!email || !email.trim()) {
+    if (!normalizedEmail) {
       return res.status(400).json({ message: "Email is required" });
     }
     if (!password || password.length < 6) {
@@ -57,33 +59,30 @@ export const register = async (req, res) => {
       return res.status(400).json({ message: "Role must be teacher or student" });
     }
 
-    // Check if email already exists
-    const exists = await User.findOne({ email: email.trim().toLowerCase() });
-    if (exists) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = generateOTP();
+    const expiry = otpExpiry();
+
+    const exists = await User.findOne({ email: normalizedEmail });
+    if (exists?.isVerified) {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const otp = generateOTP();
-
-    // Save user with OTP
-    const user = new User({
-      username: username.trim(),
-      email: email.trim().toLowerCase(),
-      password: hashedPassword,
-      role: normalizedRole,
-      otp,
-      otpExpiry: otpExpiry()
-    });
-
+    // Reuse a leftover unverified row instead of blocking re-registration
+    const user = exists || new User({ email: normalizedEmail });
+    user.username = normalizedUsername;
+    user.password = hashedPassword;
+    user.role = normalizedRole;
+    user.otp = otp;
+    user.otpExpiry = expiry;
+    user.isVerified = false;
     await user.save();
 
-    // Send Email
     try {
-      await sendMail(email.trim().toLowerCase(), "Verify Your Account", `<p>Your verification OTP is: <b>${otp}</b></p>`);
+      await sendMail(normalizedEmail, "Verify Your Account", `<p>Your verification OTP is: <b>${otp}</b></p>`);
     } catch (emailError) {
       console.error("Email sending failed:", emailError);
+      return res.status(500).json({ message: "Could not send verification email. Please try again." });
     }
 
     res.json({ message: "OTP sent successfully" });
@@ -102,10 +101,12 @@ export const registerStart = register;
 export const verifyEmail = async (req, res) => {
   try {
     const { email, otp } = req.body;
-    const user = await User.findOne({ email });
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const submittedOtp = String(otp || "").trim();
+    const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) return res.status(400).json({ message: "User not found" });
-    if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (!user.otp || String(user.otp) !== submittedOtp) return res.status(400).json({ message: "Invalid OTP" });
     if (user.otpExpiry && user.otpExpiry < Date.now()) return res.status(400).json({ message: "OTP has expired" });
 
     user.isVerified = true;
@@ -157,8 +158,10 @@ export const adminLogin = login;
 // --- FORGOT PASSWORD ---
 export const forgotPassword = async (req, res) => {
   try {
-    const { email } = req.body;
-    const user = await User.findOne({ email });
+    const normalizedEmail = String(req.body.email || "").trim().toLowerCase();
+    if (!normalizedEmail) return res.status(400).json({ message: "Email is required" });
+
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(404).json({ message: "User with this email does not exist" });
 
     const otp = generateOTP();
@@ -166,13 +169,14 @@ export const forgotPassword = async (req, res) => {
     user.otpExpiry = otpExpiry();
     await user.save();
 
-    await sendMail(email, "Reset Password Request", `
+    await sendMail(normalizedEmail, "Reset Password Request", `
       <h3>Password Reset</h3>
       <p>Your OTP is: <b style="font-size: 20px;">${otp}</b></p>
       <p>This OTP is valid for 10 minutes.</p>
     `);
     res.json({ message: "OTP sent to your email" });
   } catch (error) {
+    console.error("Forgot password error:", error);
     res.status(500).json({ message: "Error sending email" });
   }
 };
@@ -181,9 +185,12 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
-    const user = await User.findOne({ email });
+    const normalizedEmail = String(email || "").trim().toLowerCase();
+    const submittedOtp = String(otp || "").trim();
+    const user = await User.findOne({ email: normalizedEmail });
     if (!user) return res.status(404).json({ message: "User not found" });
-    if (user.otp !== otp) return res.status(400).json({ message: "Invalid OTP" });
+    if (!newPassword || newPassword.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters" });
+    if (!user.otp || String(user.otp) !== submittedOtp) return res.status(400).json({ message: "Invalid OTP" });
     if (user.otpExpiry && user.otpExpiry < Date.now()) return res.status(400).json({ message: "OTP Expired" });
 
     user.password = await bcrypt.hash(newPassword, 10);

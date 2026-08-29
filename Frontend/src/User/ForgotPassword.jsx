@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { authUrl } from "../api";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -7,17 +8,28 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
 
   const handleForgot = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/forgot-password`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email.trim().toLowerCase() }),
-    });
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setMsg("Email is required");
+      return;
+    }
 
-    const data = await res.json();
-    setMsg(data.message);
+    try {
+      const res = await fetch(authUrl("/forgot-password"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail }),
+      });
 
-    if (res.ok) {
-      navigate("/reset-password", { state: { email } });
+      const data = await res.json();
+      setMsg(data.message);
+
+      if (res.ok) {
+        navigate("/reset-password", { state: { email: normalizedEmail } });
+      }
+    } catch (err) {
+      console.error("Forgot password error:", err);
+      setMsg("Network error. Please try again.");
     }
   };
 

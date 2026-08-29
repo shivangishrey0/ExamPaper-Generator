@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { API_URL } from "../api";
 
 export default function AdminReviewSubmission() {
   const { id } = useParams(); // submissionId
@@ -7,7 +8,7 @@ export default function AdminReviewSubmission() {
   const [submission, setSubmission] = useState(null);
   const [manualMarks, setManualMarks] = useState({});
   const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("adminToken") || ""}` });
-  const API_BASE = `${import.meta.env.VITE_API_URL}/api/admin`;
+  const API_BASE = `${API_URL}/api/admin`;
 
   useEffect(() => {
     // Use a relative path to let Vite's proxy handle the port (5000 vs 5173)

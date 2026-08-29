@@ -1,11 +1,12 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useAuth } from "../Components/AuthContext";
+import { API_URL } from "../api";
 
 const LIMIT = 8;
 
 export default function ManageUsers() {
   const { auth } = useAuth();
-  const API_BASE = `${import.meta.env.VITE_API_URL}/api/superadmin`;
+  const API_BASE = `${API_URL}/api/superadmin`;
 
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);

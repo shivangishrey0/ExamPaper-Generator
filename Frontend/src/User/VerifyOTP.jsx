@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { authUrl } from "../api";
 
 export default function VerifyOTP() {
   const location = useLocation();
   const navigate = useNavigate();
-  const email = location.state?.email;
-  const API_BASE = `${import.meta.env.VITE_API_URL}/api/auth`;
+  const email = String(location.state?.email || "").trim().toLowerCase();
 
   const [otp, setOtp] = useState("");
   const [msg, setMsg] = useState("");
@@ -28,7 +28,7 @@ export default function VerifyOTP() {
 
     setLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/verify-email`, {
+      const res = await fetch(authUrl("/verify-otp"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, otp }),
