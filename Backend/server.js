@@ -21,9 +21,21 @@ const app = express();
 
 // --- CORS ---
 // Allow local Vite, the production Vercel app, and preview deployments.
+// --- CORS ---
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:3000",
+  "https://interactive-assessment-platform.vercel.app",
+].filter(Boolean);
+
 const corsOptions = {
   origin: (origin, callback) => {
-    callback(null, true);
+    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+      return callback(null, true);
+    }
+    return callback(new Error("Not allowed by CORS"));
   },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   credentials: true,
@@ -32,7 +44,7 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("/{*path}", cors(corsOptions));
+app.options(/(.*)/, cors(corsOptions));
 app.use(express.json());
 
 // --- RATE LIMITING ---  ← ADD THIS BLOCK
