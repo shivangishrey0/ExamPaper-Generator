@@ -7,10 +7,10 @@ export default function ForgotPassword() {
   const navigate = useNavigate();
 
   const handleForgot = async () => {
-    const res = await fetch("/api/auth/forgot-password", {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/forgot-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email: email.trim().toLowerCase() }),
     });
 
     const data = await res.json();

@@ -11,10 +11,10 @@ export default function ResetPassword() {
   const [msg, setMsg] = useState("");
 
   const handleReset = async () => {
-    const res = await fetch("/api/auth/reset-password", {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/reset-password`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, otp, newPassword: newPass }),
+      body: JSON.stringify({ email: String(email || "").trim().toLowerCase(), otp, newPassword: newPass }),
     });
 
     const data = await res.json();
