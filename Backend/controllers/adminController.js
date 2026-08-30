@@ -25,6 +25,9 @@ export const addQuestion = async (req, res) => {
     await newQuestion.save();
     res.status(201).json({ message: "Question added successfully!", question: newQuestion });
   } catch (error) {
+    if (error.name === "ValidationError") {
+      return res.status(400).json({ message: Object.values(error.errors).map(e => e.message).join(", ") });
+    }
     res.status(500).json({ message: "Error adding question: " + error.message });
   }
 };
@@ -78,10 +81,15 @@ export const uploadQuestions = async (req, res) => {
         if (index >= 0 && index < options.length) finalAnswer = options[index];
       }
  
+      const rawDifficulty = String(getValue(row, ["Difficulty","Diff"]) || "").toLowerCase().trim();
+      let finalDifficulty = "Medium";
+      if (/^(easy|simple)$/.test(rawDifficulty)) finalDifficulty = "Easy";
+      else if (/^(hard|difficult)$/.test(rawDifficulty)) finalDifficulty = "Hard";
+
       return {
         questionText: getValue(row, ["Question","QuestionText","QText"]),
         subject: getValue(row, ["Subject","Sub"]),
-        difficulty: getValue(row, ["Difficulty","Diff"]) || "Medium",
+        difficulty: finalDifficulty,
         section: getValue(row, ["Section","Sec"]) || "Section A",
         questionType: finalType,
         options,
@@ -248,6 +256,13 @@ export const getSubmissions = async (req, res) => {
 };
  
 const cleanStr = (str) => String(str || "").trim().toLowerCase();
+
+const getExamMaxScore = (questions = []) =>
+  questions.reduce((total, q) => {
+    if (q.questionType === "short") return total + 2;
+    if (q.questionType === "long") return total + 5;
+    return total + 1;
+  }, 0);
  
 export const gradeSubmission = async (req, res) => {
   try {
@@ -268,7 +283,16 @@ export const gradeSubmission = async (req, res) => {
       }
     });
  
-    const finalScore = frontendScore !== undefined ? frontendScore : serverScore;
+    let finalScore = serverScore;
+    if (frontendScore !== undefined) {
+      const numericScore = Number(frontendScore);
+      const maxScore = getExamMaxScore(exam.questions);
+      if (!Number.isFinite(numericScore) || numericScore < 0 || numericScore > maxScore) {
+        return res.status(400).json({ message: `Score must be a number between 0 and ${maxScore}` });
+      }
+      finalScore = numericScore;
+    }
+
     await Submission.findByIdAndUpdate(submissionId, { score: finalScore, isGraded: true });
     res.json({ message: "Result published!", score: finalScore });
   } catch (error) {

@@ -9,5 +9,9 @@ const submissionSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// One submission per student per exam — rejects the duplicate at the DB level
+// even if two submit requests race past the application-level check.
+submissionSchema.index({ examId: 1, studentId: 1 }, { unique: true });
+
 // FIX: Check if model exists before creating it
 export default mongoose.models.Submission || mongoose.model("Submission", submissionSchema);

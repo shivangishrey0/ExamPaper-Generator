@@ -14,4 +14,7 @@ const examSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+// getExams filters by createdBy for every non-superadmin request.
+examSchema.index({ createdBy: 1 });
+
 export default mongoose.model("Exam", examSchema);
