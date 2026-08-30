@@ -20,8 +20,8 @@ Treat it as a menu, not a to-do list. Nothing here should be built until we've p
 - [x] **A real health-check endpoint.** `GET /` currently just returns the string `"Backend Running..."`. A `/healthz` that actually checks Mongo connectivity is what a load balancer, uptime monitor, or Render health check expects — and it's a five-minute addition.
   - **Done:** `1deb4b2`.
 
-- [ ] **Docker + docker-compose.** No `Dockerfile` exists anywhere in the repo today. Containerizing both services plus a `docker-compose.yml` (backend + frontend + a local Mongo) gets you true one-command setup for a new contributor, and "can you containerize your app" is a very visible, very checkable interview/portfolio signal for relatively little effort.
-  - **Deliberately left for you to build hands-on** — see the guide below.
+- [x] **Docker + docker-compose.** No `Dockerfile` exists anywhere in the repo today. Containerizing both services plus a `docker-compose.yml` (backend + frontend + a local Mongo) gets you true one-command setup for a new contributor, and "can you containerize your app" is a very visible, very checkable interview/portfolio signal for relatively little effort.
+  - **Done.** `Backend/Dockerfile`, `Frontend/Dockerfile` (multi-stage: Vite build → nginx), `Frontend/nginx.conf` (SPA fallback), `docker-compose.yml` (backend + frontend + mongo). Verified with `docker compose up --build`: backend connects to the compose-network Mongo and seeds a superadmin, frontend's nginx serves the build and correctly falls back to `index.html` on client-side routes, and a full login → invite → toast → delete flow works through the two containers as genuinely separate origins (`:8080` / `:5000`). One real bug caught along the way: `pino-pretty` is a devDependency, so the image needs `NODE_ENV=production` or the pretty-print transport can't resolve and the process crashes at boot.
 
 ## Tier 2 — Real scalability levers (matter once traffic or data actually grows)
 
@@ -45,17 +45,14 @@ Treat it as a menu, not a to-do list. Nothing here should be built until we've p
 
 ---
 
-## Docker — self-guided checklist
+## Running it with Docker
 
-Left for hands-on learning rather than implemented. Suggested order, each step independently testable before moving to the next:
+```bash
+docker compose up --build   # backend :5000, frontend :8080, mongo :27017
+docker compose down         # stop (add -v to also wipe the mongo volume)
+```
 
-1. **Backend `Dockerfile`** — single-stage (`FROM node:22-alpine`, copy, `npm install`, `CMD ["node", "server.js"]`). Build and `docker run` it standalone with `--env-file`, hit `/healthz`.
-2. **Frontend `Dockerfile`** — needs to be *multi-stage*: a `node` stage that runs `npm run build`, then a second, separate stage (`nginx:alpine` or `node` + the `serve` package) that only copies `dist/` out of the first stage and serves it. Watch for: `VITE_API_URL` is inlined into the JS bundle at **build time** (Vite env vars aren't read at runtime), so it has to be passed as a Docker **build arg**, not a normal runtime env var.
-3. **`docker-compose.yml`** tying it together — backend, frontend, and a `mongo` service. Inside compose's network, containers reach each other **by service name**, not `localhost` — so `MONGO_URI` becomes `mongodb://mongo:27017/...`, not `mongodb://localhost:27017/...`.
-4. **`.dockerignore`** in both `Backend/` and `Frontend/` (at minimum: `node_modules`, `.env`, `dist`).
-5. Verify end-to-end: `docker compose up`, then run through the same login → dashboard → pagination flow used to test everything else this session.
-
-Two gotchas specific to what changed this session: CORS's `allowedOrigins` needs to include whatever origin the frontend container is actually exposed on, and the refresh-token cookie's `secure: true` flag needs HTTPS — `http://localhost:<port>` is fine (browsers treat `localhost` as a secure context), but any other hostname won't work without TLS.
+The compose backend points at the local `mongo` container, not your real `.env`'s `MONGO_URI`/`FRONTEND_URL` — `docker-compose.yml`'s `environment:` block deliberately overrides those two on top of everything else `env_file` loads from `Backend/.env`. First boot seeds a fresh default superadmin (`superadmin@example.com` / `SuperAdmin@123`) into that empty database, same as local dev.
 
 ---
 
