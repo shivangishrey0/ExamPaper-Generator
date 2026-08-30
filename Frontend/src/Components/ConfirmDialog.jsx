@@ -57,6 +57,7 @@ export function ConfirmProvider({ children }) {
 }
 
 // Returns confirmDialog(message, options) => Promise<boolean>
+// eslint-disable-next-line react-refresh/only-export-components -- context + hook live together intentionally
 export function useConfirm() {
   const ctx = useContext(ConfirmContext);
   if (!ctx) throw new Error("useConfirm must be used within ConfirmProvider");

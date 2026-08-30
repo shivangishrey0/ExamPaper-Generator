@@ -58,7 +58,7 @@ export default function TakeExam() {
         toastError("Failed to load exam.");
         navigate("/user/dashboard");
       });
-  }, [id]);
+  }, [id, navigate, toastError]);
 
   // Timer logic
   useEffect(() => {
@@ -70,6 +70,7 @@ export default function TakeExam() {
     }
     const timerId = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
     return () => clearInterval(timerId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- handleSubmit is defined below and stable enough for this per-second tick
   }, [step, timeLeft]);
 
   // FIX 3: Auto-save answers to localStorage every 15 seconds
@@ -109,12 +110,6 @@ export default function TakeExam() {
 
   const handleNextQuestion = () => {
     if (currentQIndex < exam.questions.length - 1) setCurrentQIndex((i) => i + 1);
-  };
-
-  const hasAnsweredCurrent = () => {
-    if (!exam) return false;
-    const ans = answers[exam.questions[currentQIndex]._id];
-    return ans && ans.trim().length > 0;
   };
 
   const answeredCount = () =>

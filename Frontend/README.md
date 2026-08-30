@@ -1,16 +1,35 @@
-# React + Vite
+# Exam Paper Generator — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite + Tailwind CSS frontend for the Exam Paper Generator platform. See the [repo root README](../README.md) for the full project overview, feature list, and tech stack.
 
-Currently, two official plugins are available:
+## Setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm install
+cp .env.example .env   # fill in VITE_API_URL if you're not using the local proxy
+npm run dev
+```
 
-## React Compiler
+The dev server proxies `/api` to `http://localhost:5000` (see `vite.config.js`), so the backend must be running locally for the app to work in dev.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Scripts
 
-## Expanding the ESLint configuration
+| Command | What it does |
+|---|---|
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Production build to `dist/` |
+| `npm run preview` | Preview the production build locally |
+| `npm run lint` | Run ESLint |
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Structure
+
+- `src/Admin/` — teacher and superadmin dashboards, exam review/grading screens
+- `src/User/` — registration, login, OTP verification, password reset/set
+- `src/Pages/` — landing page, login-role selector, take-exam flow
+- `src/Components/` — shared UI: `AuthContext`, `Toast`, `ConfirmDialog`, `Pagination`, `LoadingSkeleton`, `PasswordInput`
+- `src/api.js` — `apiFetch`, the one place the backend URL and auth headers are resolved; every page's data fetching should go through it
+
+## Notes
+
+- Auth state (token, role, permissions) lives in `AuthContext` and `localStorage`; `apiFetch` reads the token directly from `localStorage` and logs the user out on a 401.
+- Icons use the [Tabler Icons](https://tabler.io/icons) webfont, loaded via CDN in `index.html` — icon class names are `ti ti-<name>`.

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useState } from "react";
+import React, { createContext, useCallback, useContext, useMemo, useState } from "react";
 
 const ToastContext = createContext(null);
 
@@ -24,11 +24,11 @@ export function ToastProvider({ children }) {
     return id;
   }, [dismiss]);
 
-  const value = {
+  const value = useMemo(() => ({
     toast,
     success: (message, duration) => toast(message, "success", duration),
     error: (message, duration) => toast(message, "error", duration),
-  };
+  }), [toast]);
 
   return (
     <ToastContext.Provider value={value}>
@@ -49,6 +49,7 @@ export function ToastProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- context + hook live together intentionally
 export function useToast() {
   const ctx = useContext(ToastContext);
   if (!ctx) throw new Error("useToast must be used within ToastProvider");

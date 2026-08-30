@@ -6,7 +6,7 @@ A full-stack exam management platform built with the MERN stack. Supports role-b
 
 ## 🔗 Live Demo
 
-🌐 [Click here to open the app](https://your-vercel-link.vercel.app)
+🌐 [Click here to open the app](https://interactive-assessment-platform.vercel.app)
 
 ---
 
@@ -85,9 +85,43 @@ node server.js
 # Frontend setup
 cd ../Frontend
 npm install
+cp .env.example .env
+# Fill in your env variables
 npm run dev
 ```
 
 ---
 
+## ✅ Tests & Linting
+
+```bash
+cd Backend && npm test    # node:test unit tests
+cd Frontend && npm run lint
+```
+
+Both run automatically on every push/PR to `main` via GitHub Actions (`.github/workflows/ci.yml`), which also builds the frontend.
+
+---
+
 ## 📁 Project Structure
+
+```
+Exam-Paper-Generator/
+├── Backend/
+│   ├── config/          # DB seeding (default superadmin)
+│   ├── controllers/      # Route handlers — auth, teacher/admin exam logic, superadmin user management
+│   ├── middleware/        # rbac.js — JWT verification, role/permission checks
+│   ├── models/            # Mongoose schemas: User, Question, Exam, Submission
+│   ├── routes/            # Express routers, mounted in server.js under /api/*
+│   ├── test/               # node:test unit tests (npm test)
+│   ├── utils/              # mailer, OTP, permissions, input sanitization
+│   └── server.js           # App entry point — CORS, rate limiting, security headers, route mounting
+│
+└── Frontend/
+    └── src/
+        ├── Admin/           # Teacher + superadmin dashboards and exam-review screens
+        ├── User/            # Auth flow — register, login, OTP, password reset/set
+        ├── Pages/           # Public/shared pages — landing, login options, take-exam
+        ├── Components/      # Shared UI — AuthContext, Toast, ConfirmDialog, Pagination, etc.
+        └── api.js           # apiFetch — the one place backend URL + auth headers are resolved
+```

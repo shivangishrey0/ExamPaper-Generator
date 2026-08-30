@@ -15,7 +15,7 @@ export default function AdminViewPaper() {
       .then((res) => res.json())
       .then((data) => setExam(data))
       .catch(() => toastError("Failed to load exam"));
-  }, [id]);
+  }, [id, toastError]);
 
   if (!exam) return <div className="p-10 text-center font-bold">Loading Paper...</div>;
 
