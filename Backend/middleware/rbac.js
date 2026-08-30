@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
-export const verifyToken = (req, res, next) => {
+export const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization || "";
     if (!authHeader.startsWith("Bearer ")) {
@@ -13,7 +14,16 @@ export const verifyToken = (req, res, next) => {
       return res.status(500).json({ message: "JWT secret is not configured" });
     }
 
-    req.user = jwt.verify(token, secret);
+    const decoded = jwt.verify(token, secret);
+
+    // Re-check the account on every request so a deactivation takes effect
+    // immediately instead of waiting out the token's 7-day lifetime.
+    const user = await User.findById(decoded.userId).select("isActive");
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: "Unauthorized: account is deactivated" });
+    }
+
+    req.user = decoded;
     return next();
   } catch (error) {
     return res.status(401).json({ message: "Unauthorized: invalid or expired token" });

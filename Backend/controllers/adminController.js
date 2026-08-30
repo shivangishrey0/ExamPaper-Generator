@@ -4,6 +4,7 @@ import xlsx from "xlsx";
 import fs from "fs";
 import Submission from "../models/submission.js";
 import dotenv from "dotenv";
+import { escapeRegex } from "../utils/sanitize.js";
  
 dotenv.config();
  
@@ -117,7 +118,7 @@ export const generatePaper = async (req, res) => {
   if (!title || !subject)
     return res.status(400).json({ message: "Please provide Exam Title and Subject." });
  
-  const subjectRegex = new RegExp(`^${subject.trim()}$`, "i");
+  const subjectRegex = new RegExp(`^${escapeRegex(subject.trim())}$`, "i");
   let questions = [];
  
   try {
@@ -182,7 +183,7 @@ export const getExams = async (req, res) => {
  
     // Optional search by title
     if (req.query.search && req.query.search.trim()) {
-      baseFilter.title = new RegExp(req.query.search.trim(), "i");
+      baseFilter.title = new RegExp(escapeRegex(req.query.search.trim()), "i");
     }
  
     const [exams, total] = await Promise.all([

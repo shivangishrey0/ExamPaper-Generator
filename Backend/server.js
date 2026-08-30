@@ -8,6 +8,7 @@ dotenv.config({ path: path.join(__dirname, ".env") });
 import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
+import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import { seedSuperAdmin } from "./config/seedSuperAdmin.js";
 
@@ -32,7 +33,7 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith(".vercel.app")) {
+    if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
     return callback(new Error("Not allowed by CORS"));
@@ -43,6 +44,7 @@ const corsOptions = {
   optionsSuccessStatus: 204,
 };
 
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(cors(corsOptions));
 app.options(/(.*)/, cors(corsOptions));
 app.use(express.json());
@@ -75,6 +77,9 @@ app.use(generalLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/auth/forgot-password", authLimiter);
+app.use("/api/auth/verify-otp", authLimiter);
+app.use("/api/auth/verify-email", authLimiter);
+app.use("/api/auth/reset-password", authLimiter);
 // ---------------------
 
 // --- ROUTES ---

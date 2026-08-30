@@ -2,6 +2,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import { sendMail } from "../utils/mailer.js";
+import { escapeRegex } from "../utils/sanitize.js";
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -171,7 +172,7 @@ export const listUsers = async (req, res) => {
       filter.role = req.query.role;
     }
     if (req.query.search && req.query.search.trim()) {
-      const regex = new RegExp(req.query.search.trim(), "i");
+      const regex = new RegExp(escapeRegex(req.query.search.trim()), "i");
       filter.$or = [{ username: regex }, { email: regex }];
     }
 

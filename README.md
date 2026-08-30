@@ -10,11 +10,14 @@ A full-stack exam management platform built with the MERN stack. Supports role-b
 
 ---
 
-## 🔑 Demo Credentials
+## 🔑 Superadmin Access
 
-| Role | Email | Password |
-|---|---|---|
-| Super Admin | superadmin@example.com | SuperAdmin@123 |
+There is no public demo login. The first superadmin account is seeded from the
+`SUPERADMIN_EMAIL`, `SUPERADMIN_NAME`, and `SUPERADMIN_PASSWORD` environment
+variables on first boot (see `Backend/.env.example`) — **set real, private
+values for these in production**, never the placeholders from the example
+file. All other accounts (teacher/student) are created by the superadmin
+through the invite flow, not by self-registration into those roles.
 
 ---
 
