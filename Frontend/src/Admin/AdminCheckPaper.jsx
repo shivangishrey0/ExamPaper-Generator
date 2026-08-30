@@ -1,27 +1,25 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../Components/AuthContext";
-import { API_URL } from "../api";
+import { apiFetch } from "../api";
+import { useToast } from "../Components/Toast";
 
 export default function AdminCheckPaper() {
   const { examId } = useParams();
   const navigate = useNavigate();
-  const { auth } = useAuth(); // FIXED: use context, not localStorage directly
+  const { success, error: toastError } = useToast();
 
   const [submissions, setSubmissions] = useState([]);
   const [selectedPaper, setSelectedPaper] = useState(null);
   const [examData, setExamData] = useState(null);
   const [manualScores, setManualScores] = useState({});
 
-  const authHeaders = () => ({ Authorization: `Bearer ${auth.token}` });
-
   useEffect(() => {
-    fetch(`${API_URL}/api/teacher/submissions/${examId}`, { headers: authHeaders() })
+    apiFetch(`/api/teacher/submissions/${examId}`)
       .then((res) => res.json())
       .then((data) => setSubmissions(data))
       .catch((err) => console.error(err));
 
-    fetch(`${API_URL}/api/teacher/exam/${examId}`, { headers: authHeaders() })
+    apiFetch(`/api/teacher/exam/${examId}`)
       .then((res) => res.json())
       .then((data) => setExamData(data));
   }, [examId]);
@@ -79,14 +77,14 @@ export default function AdminCheckPaper() {
 
   const handlePublishResult = async () => {
     const finalScore = getTotalScore();
-    const res = await fetch(`${API_URL}/api/teacher/grade-paper`, {
+    const res = await apiFetch(`/api/teacher/grade-paper`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ submissionId: selectedPaper._id, score: finalScore }),
     });
 
     if (res.ok) {
-      alert(`Result published! Score: ${finalScore}`);
+      success(`Result published! Score: ${finalScore}`);
       setSelectedPaper(null);
       setSubmissions(
         submissions.map((sub) =>
@@ -95,6 +93,9 @@ export default function AdminCheckPaper() {
             : sub
         )
       );
+    } else {
+      const data = await res.json().catch(() => ({}));
+      toastError(data.message || "Failed to publish result");
     }
   };
 

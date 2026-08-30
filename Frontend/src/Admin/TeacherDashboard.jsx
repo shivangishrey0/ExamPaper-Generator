@@ -1,14 +1,20 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Components/AuthContext";
-import { API_URL } from "../api";
+import { apiFetch } from "../api";
+import { useToast } from "../Components/Toast";
+import { useConfirm } from "../Components/ConfirmDialog";
+import Pagination from "../Components/Pagination";
+import { CardSkeleton } from "../Components/LoadingSkeleton";
 
 const EXAM_LIMIT = 6;
+const API_BASE = "/api/teacher";
 
 export default function TeacherDashboard({ embeddedMode = false }) {
   const navigate = useNavigate();
   const { auth, clearSession } = useAuth();
-  const API_BASE = `${API_URL}/api/teacher`;
+  const { success, error: toastError } = useToast();
+  const confirmDialog = useConfirm();
 
   const [activeTab, setActiveTab] = useState("generate");
   const [file, setFile] = useState(null);
@@ -33,8 +39,6 @@ export default function TeacherDashboard({ embeddedMode = false }) {
     mcqCount: 0, shortCount: 0, longCount: 0,
   });
 
-  const authHeaders = () => ({ Authorization: `Bearer ${auth.token}` });
-
   const fetchExams = useCallback(async () => {
     setExamLoading(true);
     const params = new URLSearchParams({
@@ -42,15 +46,15 @@ export default function TeacherDashboard({ embeddedMode = false }) {
       limit: EXAM_LIMIT,
       ...(examSearch && { search: examSearch }),
     });
-    const res = await fetch(`${API_BASE}/exams?${params}`, { headers: authHeaders() });
+    const res = await apiFetch(`${API_BASE}/exams?${params}`);
     if (res.ok) {
       const data = await res.json();
       setExams(data.exams);
       setExamTotal(data.total);
-      setExamTotalPages(data.totalPages); 
+      setExamTotalPages(data.totalPages);
     }
     setExamLoading(false);
-  }, [examPage, examSearch, auth.token]);
+  }, [examPage, examSearch]);
 
   useEffect(() => {
     if (activeTab === "view") fetchExams();
@@ -68,24 +72,26 @@ export default function TeacherDashboard({ embeddedMode = false }) {
       options: [qData.option1, qData.option2, qData.option3, qData.option4].filter(Boolean),
       questionType: "mcq",
     };
-    const res = await fetch(`${API_BASE}/add-question`, {
+    const res = await apiFetch(`${API_BASE}/add-question`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    alert(data.message || (res.ok ? "Question added" : "Failed"));
+    if (res.ok) success(data.message || "Question added");
+    else toastError(data.message || "Failed");
   };
 
   const uploadQuestions = async () => {
-    if (!file) return alert("Please select a file first");
+    if (!file) return toastError("Please select a file first");
     const formData = new FormData();
     formData.append("file", file);
-    const res = await fetch(`${API_BASE}/upload-questions`, {
-      method: "POST", headers: authHeaders(), body: formData,
+    const res = await apiFetch(`${API_BASE}/upload-questions`, {
+      method: "POST", body: formData,
     });
     const data = await res.json();
-    alert(data.message || (res.ok ? "Uploaded" : "Upload failed"));
+    if (res.ok) success(data.message || "Uploaded");
+    else toastError(data.message || "Upload failed");
   };
 
   const generateExam = async () => {
@@ -99,37 +105,34 @@ export default function TeacherDashboard({ embeddedMode = false }) {
       shortCount: Number(gData.shortCount) || 0,
       longCount: Number(gData.longCount) || 0,
     };
-    const res = await fetch(`${API_BASE}/generate-paper`, {
+    const res = await apiFetch(`${API_BASE}/generate-paper`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders() },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    alert(data.message || (res.ok ? "Exam generated" : "Failed"));
-    if (res.ok) { setActiveTab("view"); setExamPage(1); }
+    if (res.ok) {
+      success(data.message || "Exam generated");
+      setActiveTab("view");
+      setExamPage(1);
+    } else {
+      toastError(data.message || "Failed");
+    }
   };
 
   const publishExam = async (id) => {
-    const res = await fetch(`${API_BASE}/publish/${id}`, { method: "PUT", headers: authHeaders() });
+    const res = await apiFetch(`${API_BASE}/publish/${id}`, { method: "PUT" });
     if (res.ok) fetchExams();
   };
 
   const deleteExam = async (id) => {
-    if (!confirm("Delete this exam?")) return;
-    const res = await fetch(`${API_BASE}/exam/${id}`, { method: "DELETE", headers: authHeaders() });
+    const ok = await confirmDialog("Delete this exam? Questions stay in your question bank.", { title: "Delete exam", danger: true, confirmLabel: "Delete" });
+    if (!ok) return;
+    const res = await apiFetch(`${API_BASE}/exam/${id}`, { method: "DELETE" });
     if (res.ok) {
       if (exams.length === 1 && examPage > 1) setExamPage(p => p - 1);
       else fetchExams();
     }
-  };
-
-  const getExamPageNums = () => {
-    const pages = [];
-    let start = Math.max(1, examPage - 2);
-    let end = Math.min(examTotalPages, start + 4);
-    if (end - start < 4) start = Math.max(1, end - 4);
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
   };
 
   const subjects = ["DBMS", "OS", "CN", "DSA", "SE", "TOC", "Maths"];
@@ -312,12 +315,7 @@ export default function TeacherDashboard({ embeddedMode = false }) {
 
             {/* Exam cards */}
             {examLoading ? (
-              [...Array(EXAM_LIMIT)].map((_, i) => (
-                <div key={i} className="bg-white p-4 rounded-lg border animate-pulse">
-                  <div className="h-4 bg-stone-100 rounded w-48 mb-2" />
-                  <div className="h-3 bg-stone-100 rounded w-32" />
-                </div>
-              ))
+              <CardSkeleton count={EXAM_LIMIT} />
             ) : exams.length === 0 ? (
               <p className="text-stone-400 text-center py-10">No exams found.</p>
             ) : (
@@ -349,31 +347,15 @@ export default function TeacherDashboard({ embeddedMode = false }) {
               ))
             )}
 
-            {/* Pagination bar */}
-            {!examLoading && examTotalPages > 1 && (
-              <div className="flex items-center justify-between pt-2">
-                <p className="text-xs text-stone-500">
-                  Showing {(examPage - 1) * EXAM_LIMIT + 1}–{Math.min(examPage * EXAM_LIMIT, examTotal)} of {examTotal}
-                </p>
-                <div className="flex gap-1">
-                  <button onClick={() => setExamPage(p => p - 1)} disabled={examPage === 1}
-                    className="px-2.5 py-1.5 border rounded text-xs hover:bg-stone-100 disabled:opacity-40">
-                    ← Prev
-                  </button>
-                  {getExamPageNums().map(n => (
-                    <button key={n} onClick={() => setExamPage(n)}
-                      className={`px-2.5 py-1.5 border rounded text-xs ${
-                        n === examPage ? "bg-stone-900 text-white border-stone-900" : "hover:bg-stone-100"
-                      }`}>
-                      {n}
-                    </button>
-                  ))}
-                  <button onClick={() => setExamPage(p => p + 1)} disabled={examPage === examTotalPages}
-                    className="px-2.5 py-1.5 border rounded text-xs hover:bg-stone-100 disabled:opacity-40">
-                    Next →
-                  </button>
-                </div>
-              </div>
+            {!examLoading && (
+              <Pagination
+                page={examPage}
+                totalPages={examTotalPages}
+                total={examTotal}
+                limit={EXAM_LIMIT}
+                onPageChange={setExamPage}
+                className="pt-2"
+              />
             )}
           </div>
         )}

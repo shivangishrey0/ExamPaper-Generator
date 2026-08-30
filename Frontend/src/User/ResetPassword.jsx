@@ -1,18 +1,20 @@
 import React, { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { authUrl } from "../api";
+import { authUrl, apiFetch } from "../api";
+import { useToast } from "../Components/Toast";
 
 export default function ResetPassword() {
   const location = useLocation();
   const navigate = useNavigate();
   const email = location.state?.email;
+  const { success } = useToast();
 
   const [otp, setOtp] = useState("");
   const [newPass, setNewPass] = useState("");
   const [msg, setMsg] = useState("");
 
   const handleReset = async () => {
-    const res = await fetch(authUrl("/reset-password"), {
+    const res = await apiFetch(authUrl("/reset-password"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: String(email || "").trim().toLowerCase(), otp, newPassword: newPass }),
@@ -22,7 +24,7 @@ export default function ResetPassword() {
     setMsg(data.message);
 
     if (res.ok) {
-      alert("Password reset successful. Please login.");
+      success("Password reset successful. Please login.");
       navigate("/login");
     }
   };

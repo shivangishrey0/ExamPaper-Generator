@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { API_URL } from "../api";
+import { apiFetch } from "../api";
+import { useToast } from "../Components/Toast";
 
 export default function AdminViewPaper() {
   const { id } = useParams(); // Get the Exam ID from the URL
   const navigate = useNavigate();
   const [exam, setExam] = useState(null);
-  const authHeaders = () => ({ Authorization: `Bearer ${localStorage.getItem("token") || ""}` });
+  const { error: toastError } = useToast();
 
   useEffect(() => {
     // Fetch the specific exam details
-    fetch(`${API_URL}/api/teacher/exam/${id}`, { headers: authHeaders() })
+    apiFetch(`/api/teacher/exam/${id}`)
       .then((res) => res.json())
       .then((data) => setExam(data))
-      .catch((err) => alert("Failed to load exam"));
+      .catch(() => toastError("Failed to load exam"));
   }, [id]);
 
   if (!exam) return <div className="p-10 text-center font-bold">Loading Paper...</div>;

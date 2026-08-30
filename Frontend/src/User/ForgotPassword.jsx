@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { authUrl } from "../api";
+import { authUrl, apiFetch } from "../api";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleForgot = async () => {
@@ -13,16 +14,20 @@ export default function ForgotPassword() {
       setMsg("Email is required");
       return;
     }
+    if (loading) return;
+
+    setLoading(true);
+    setMsg("Sending OTP...");
 
     try {
-      const res = await fetch(authUrl("/forgot-password"), {
+      const res = await apiFetch(authUrl("/forgot-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: normalizedEmail }),
       });
 
       const data = await res.json();
-      setMsg(data.message);
+      setMsg(data.message || (res.ok ? "OTP sent to your email" : "Could not send OTP"));
 
       if (res.ok) {
         navigate("/reset-password", { state: { email: normalizedEmail } });
@@ -30,6 +35,8 @@ export default function ForgotPassword() {
     } catch (err) {
       console.error("Forgot password error:", err);
       setMsg("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,9 +57,10 @@ export default function ForgotPassword() {
 
         <button
           onClick={handleForgot}
-          className="w-full bg-blue-600 text-white py-3 rounded-lg"
+          disabled={loading}
+          className={`w-full text-white py-3 rounded-lg ${loading ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600"}`}
         >
-          Send OTP
+          {loading ? "Sending OTP..." : "Send OTP"}
         </button>
 
       </div>

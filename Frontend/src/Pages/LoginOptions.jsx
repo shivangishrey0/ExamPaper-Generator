@@ -24,7 +24,7 @@ const portals = [
     role: "student",
     label: "Student",
     description: "Take published exams and view your results",
-    icon: "ti-user-graduate",
+    icon: "ti-school",
     accent: "bg-emerald-600",
     border: "border-emerald-200 hover:border-emerald-400",
     badge: "bg-emerald-100 text-emerald-800",

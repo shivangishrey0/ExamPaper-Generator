@@ -3,7 +3,7 @@ import { useNavigate, Link } from "react-router-dom";
 import imgA from "../assets/img2.jpg";
 import imgB from "../assets/img3.jpg";
 import imgC from "../assets/img4.jpg";
-import { authUrl } from "../api";
+import { authUrl, apiFetch } from "../api";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ export default function Register() {
     setLoading(true);
     try {
       const normalizedEmail = email.trim().toLowerCase();
-      const res = await fetch(authUrl("/register"), {
+      const res = await apiFetch(authUrl("/register"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim(), email: normalizedEmail, password, role }),

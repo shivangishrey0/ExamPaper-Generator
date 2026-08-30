@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "../Components/AuthContext";
-import { authUrl } from "../api";
+import { authUrl, apiFetch } from "../api";
+import PasswordInput from "../Components/PasswordInput";
  
 const roleConfig = {
   superadmin: {
@@ -22,7 +23,7 @@ const roleConfig = {
   },
   student: {
     label: "Student",
-    icon: "ti-user-graduate",
+    icon: "ti-school",
     iconBg: "bg-emerald-600",
     badge: "bg-emerald-100 text-emerald-800",
     ring: "focus:ring-emerald-400/40 focus:border-emerald-500",
@@ -42,8 +43,7 @@ export default function Login() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
- 
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (error) setError("");
@@ -55,7 +55,7 @@ export default function Login() {
     setError("");
  
     try {
-      const res = await fetch(authUrl("/login"), {
+      const res = await apiFetch(authUrl("/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -157,29 +157,13 @@ export default function Login() {
                 Forgot?
               </Link>
             </div>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="••••••••"
-                required
-                className={`w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-stone-900 placeholder-stone-400 text-sm outline-none transition-all pr-11 ${config.ring}`}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                <i
-                  className={`ti ${showPassword ? "ti-eye-off" : "ti-eye"}`}
-                  style={{ fontSize: 17 }}
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
+            <PasswordInput
+              name="password"
+              value={formData.password}
+              onChange={handleChange}
+              required
+              inputClassName={config.ring}
+            />
           </div>
  
           {/* Submit */}

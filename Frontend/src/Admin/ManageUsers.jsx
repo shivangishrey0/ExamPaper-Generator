@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useAuth } from "../Components/AuthContext";
-import { API_URL } from "../api";
+import { apiFetch } from "../api";
+import { useToast } from "../Components/Toast";
+import { useConfirm } from "../Components/ConfirmDialog";
+import Pagination from "../Components/Pagination";
+import { TableRowSkeleton } from "../Components/LoadingSkeleton";
 
 const LIMIT = 8;
 
 export default function ManageUsers() {
-  const { auth } = useAuth();
+  const { success, error: toastError } = useToast();
+  const confirmDialog = useConfirm();
 
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
@@ -21,11 +25,6 @@ export default function ManageUsers() {
   const [form, setForm] = useState({ username: "", email: "", role: "teacher" });
   const [creating, setCreating] = useState(false);
 
-  const headers = () => ({
-    "Content-Type": "application/json",
-    Authorization: `Bearer ${auth.token}`,
-  });
-
   const loadUsers = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({
@@ -33,9 +32,7 @@ export default function ManageUsers() {
       ...(search && { search }),
       ...(roleFilter && { role: roleFilter }),
     });
-    const res = await fetch(`${API_URL}/api/superadmin/users?${params}`, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-    });
+    const res = await apiFetch(`/api/superadmin/users?${params}`);
     if (res.ok) {
       const data = await res.json();
       setUsers(data.users);
@@ -43,7 +40,7 @@ export default function ManageUsers() {
       setTotalPages(data.totalPages);
     }
     setLoading(false);
-  }, [page, search, roleFilter, auth.token]);
+  }, [page, search, roleFilter]);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
@@ -54,50 +51,46 @@ export default function ManageUsers() {
   const handleInvite = async (e) => {
     e.preventDefault();
     setCreating(true);
-    const res = await fetch(`${API_URL}/api/superadmin/invite`, {
+    const res = await apiFetch(`/api/superadmin/invite`, {
       method: "POST",
-      headers: headers(),
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(form),
     });
     const data = await res.json();
-    alert(data.message);
     if (res.ok) {
+      success(data.message);
       setForm({ username: "", email: "", role: "teacher" });
       setPage(1);
       loadUsers();
+    } else {
+      toastError(data.message);
     }
     setCreating(false);
   };
 
   const resendInvite = async (id) => {
-    const res = await fetch(`${API_URL}/api/superadmin/users/${id}/resend-invite`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${auth.token}` },
-    });
+    const res = await apiFetch(`/api/superadmin/users/${id}/resend-invite`, { method: "POST" });
     const data = await res.json();
-    alert(data.message);
+    if (res.ok) success(data.message);
+    else toastError(data.message);
   };
 
   const deactivate = async (id) => {
-    if (!confirm("Deactivate this user?")) return;
-    await fetch(`${API_URL}/api/superadmin/users/${id}/deactivate`, {
-      method: "PATCH", headers: { Authorization: `Bearer ${auth.token}` },
-    });
+    const ok = await confirmDialog("Deactivate this user? They will be logged out immediately.", { title: "Deactivate user" });
+    if (!ok) return;
+    await apiFetch(`/api/superadmin/users/${id}/deactivate`, { method: "PATCH" });
     loadUsers();
   };
 
   const activate = async (id) => {
-    await fetch(`${API_URL}/api/superadmin/users/${id}/activate`, {
-      method: "PATCH", headers: { Authorization: `Bearer ${auth.token}` },
-    });
+    await apiFetch(`/api/superadmin/users/${id}/activate`, { method: "PATCH" });
     loadUsers();
   };
 
   const deleteUser = async (id) => {
-    if (!confirm("Permanently delete this user?")) return;
-    await fetch(`${API_URL}/api/superadmin/users/${id}`, {
-      method: "DELETE", headers: { Authorization: `Bearer ${auth.token}` },
-    });
+    const ok = await confirmDialog("Permanently delete this user? This cannot be undone.", { title: "Delete user", danger: true, confirmLabel: "Delete" });
+    if (!ok) return;
+    await apiFetch(`/api/superadmin/users/${id}`, { method: "DELETE" });
     if (users.length === 1 && page > 1) setPage(p => p - 1);
     else loadUsers();
   };
@@ -134,15 +127,6 @@ export default function ManageUsers() {
         {user.isActive ? "Active" : "Inactive"}
       </span>
     );
-  };
-
-  const getPageNums = () => {
-    const pages = [];
-    let start = Math.max(1, page - 2);
-    let end = Math.min(totalPages, start + 4);
-    if (end - start < 4) start = Math.max(1, end - 4);
-    for (let i = start; i <= end; i++) pages.push(i);
-    return pages;
   };
 
   return (
@@ -250,13 +234,7 @@ export default function ManageUsers() {
           </thead>
           <tbody>
             {loading ? (
-              [...Array(LIMIT)].map((_, i) => (
-                <tr key={i} className="border-t animate-pulse">
-                  {[...Array(7)].map((_, j) => (
-                    <td key={j} className="p-3"><div className="h-3 bg-stone-100 rounded w-full" /></td>
-                  ))}
-                </tr>
-              ))
+              <TableRowSkeleton rows={LIMIT} columns={7} />
             ) : users.length === 0 ? (
               <tr>
                 <td colSpan={7} className="p-8 text-center text-stone-400">No users found.</td>
@@ -309,31 +287,15 @@ export default function ManageUsers() {
           </tbody>
         </table>
 
-        {/* Pagination */}
-        {!loading && totalPages > 1 && (
-          <div className="px-4 py-3 border-t flex items-center justify-between bg-stone-50">
-            <p className="text-xs text-stone-500">
-              Showing {(page - 1) * LIMIT + 1}–{Math.min(page * LIMIT, total)} of {total}
-            </p>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setPage(p => p - 1)} disabled={page === 1}
-                className="px-2.5 py-1.5 border rounded text-xs hover:bg-stone-100 disabled:opacity-40">
-                ← Prev
-              </button>
-              {getPageNums().map(n => (
-                <button key={n} onClick={() => setPage(n)}
-                  className={`px-2.5 py-1.5 border rounded text-xs ${
-                    n === page ? "bg-stone-900 text-white border-stone-900" : "hover:bg-stone-100"
-                  }`}>
-                  {n}
-                </button>
-              ))}
-              <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages}
-                className="px-2.5 py-1.5 border rounded text-xs hover:bg-stone-100 disabled:opacity-40">
-                Next →
-              </button>
-            </div>
-          </div>
+        {!loading && (
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            total={total}
+            limit={LIMIT}
+            onPageChange={setPage}
+            className="px-4 py-3 border-t bg-stone-50"
+          />
         )}
       </div>
     </div>

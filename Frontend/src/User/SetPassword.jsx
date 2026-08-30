@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { authUrl } from "../api";
+import { authUrl, apiFetch } from "../api";
+import PasswordInput from "../Components/PasswordInput";
 
 export default function SetPassword() {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ export default function SetPassword() {
 
     setLoading(true);
     try {
-      const res = await fetch(authUrl("/set-password"), {
+      const res = await apiFetch(authUrl("/set-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, password }),
@@ -107,24 +108,15 @@ export default function SetPassword() {
               <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wide mb-1.5">
                 New Password
               </label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 6 characters"
-                  required
-                  className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-stone-400/40 focus:border-stone-400 pr-11"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  <i className={`ti ${showPassword ? "ti-eye-off" : "ti-eye"}`} style={{ fontSize: 17 }} aria-hidden="true" />
-                </button>
-              </div>
+              <PasswordInput
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="At least 6 characters"
+                required
+                visible={showPassword}
+                onToggleVisible={setShowPassword}
+                inputClassName="focus:ring-2 focus:ring-stone-400/40 focus:border-stone-400"
+              />
             </div>
 
             {/* Confirm Password */}
@@ -132,13 +124,15 @@ export default function SetPassword() {
               <label className="block text-xs font-semibold text-stone-600 uppercase tracking-wide mb-1.5">
                 Confirm Password
               </label>
-              <input
-                type={showPassword ? "text" : "password"}
+              <PasswordInput
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 placeholder="Repeat your password"
                 required
-                className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-stone-400/40 focus:border-stone-400"
+                visible={showPassword}
+                onToggleVisible={setShowPassword}
+                showToggle={false}
+                inputClassName="focus:ring-2 focus:ring-stone-400/40 focus:border-stone-400"
               />
             </div>
 

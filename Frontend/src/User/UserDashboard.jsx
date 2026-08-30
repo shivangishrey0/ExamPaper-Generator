@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Components/AuthContext";
-import { API_URL } from "../api";
+import { apiFetch } from "../api";
 
 // Grade helper
 const getGrade = (percentage) => {
@@ -20,11 +20,8 @@ export default function UserDashboard() {
   const [loading, setLoading] = useState(true);
   const [resultExam, setResultExam] = useState(null); // for result modal
 
-  // FIXED: use auth.token from context
-  const authHeaders = () => ({ Authorization: `Bearer ${auth.token}` });
-
   useEffect(() => {
-    fetch(`${API_URL}/api/student/exams`, { headers: authHeaders() })
+    apiFetch(`/api/student/exams`)
       .then((res) => { if (!res.ok) throw new Error("Failed"); return res.json(); })
       .then((data) => { setExams(data); setLoading(false); })
       .catch(() => setLoading(false));

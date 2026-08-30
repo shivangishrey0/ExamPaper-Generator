@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
-import { useAuth } from "../Components/AuthContext";
-import { API_URL } from "../api";
+import { apiFetch } from "../api";
+import { useToast } from "../Components/Toast";
+import { useConfirm } from "../Components/ConfirmDialog";
 
 const AUTOSAVE_KEY = (examId) => `exam_autosave_${examId}`;
 
@@ -10,7 +11,8 @@ export default function TakeExam() {
   const { id } = useParams();
   const navigate = useNavigate();
   const webcamRef = useRef(null);
-  const { auth } = useAuth(); // FIXED: use context not localStorage
+  const { toast, error: toastError } = useToast();
+  const confirmDialog = useConfirm();
 
   const [exam, setExam] = useState(null);
   const [step, setStep] = useState("instructions");
@@ -22,16 +24,9 @@ export default function TakeExam() {
   const [timeLeft, setTimeLeft] = useState(null);
   const [lastSaved, setLastSaved] = useState(null); // auto-save indicator
 
-  const authHeaders = () => ({
-    Authorization: `Bearer ${auth.token}`,
-    "Content-Type": "application/json",
-  });
-
   // Fetch exam + check if already submitted
   useEffect(() => {
-    fetch(`${API_URL}/api/student/exam/${id}`, {
-      headers: { Authorization: `Bearer ${auth.token}` },
-    })
+    apiFetch(`/api/student/exam/${id}`)
       .then((res) => { if (!res.ok) throw new Error("Exam not found"); return res.json(); })
       .then((data) => {
         setExam(data);
@@ -60,16 +55,16 @@ export default function TakeExam() {
         setLoading(false);
       })
       .catch(() => {
-        alert("Failed to load exam.");
+        toastError("Failed to load exam.");
         navigate("/user/dashboard");
       });
-  }, [id, auth.token]);
+  }, [id]);
 
   // Timer logic
   useEffect(() => {
     if (step !== "test" || timeLeft === null) return;
     if (timeLeft <= 0) {
-      alert("⏳ Time is up! Submitting automatically.");
+      toast("⏳ Time is up! Submitting automatically.");
       handleSubmit(true);
       return;
     }
@@ -103,7 +98,7 @@ export default function TakeExam() {
   };
 
   const handleStartExam = () => {
-    if (!cameraAllowed) return alert("You must allow camera access to start!");
+    if (!cameraAllowed) return toastError("You must allow camera access to start!");
     setStep("test");
   };
 
@@ -126,12 +121,15 @@ export default function TakeExam() {
     exam ? exam.questions.filter((q) => answers[q._id]?.trim?.()).length : 0;
 
   const handleSubmit = async (autoSubmit = false) => {
-    if (!autoSubmit && !window.confirm("Are you sure you want to submit?")) return;
+    if (!autoSubmit) {
+      const ok = await confirmDialog("Are you sure you want to submit?", { title: "Submit exam", confirmLabel: "Submit" });
+      if (!ok) return;
+    }
 
     try {
-      const res = await fetch(`${API_URL}/api/student/submit-exam`, {
+      const res = await apiFetch(`/api/student/submit-exam`, {
         method: "POST",
-        headers: authHeaders(),
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ examId: id, answers }),
       });
 
@@ -141,10 +139,10 @@ export default function TakeExam() {
         setStep("submitted");
       } else {
         const err = await res.json();
-        alert("Submission failed: " + err.message);
+        toastError("Submission failed: " + err.message);
       }
     } catch {
-      alert("Network error. Could not submit.");
+      toastError("Network error. Could not submit.");
     }
   };
 
