@@ -13,7 +13,7 @@ import { seedSuperAdmin } from "./config/seedSuperAdmin.js";
 
 // Routes
 import authRoutes from "./routes/auth.js";
-import adminRoutes from "./routes/admin.js";
+import superAdminRoutes from "./routes/adminRoutes.js";
 import teacherRoutes from "./routes/teacher.js";
 import studentRoutes from "./routes/student.js";
 
@@ -79,8 +79,7 @@ app.use("/api/auth/forgot-password", authLimiter);
 
 // --- ROUTES ---
 app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes);
-app.use("/api/superadmin", adminRoutes);
+app.use("/api/superadmin", superAdminRoutes);
 app.use("/api/teacher", teacherRoutes);
 app.use("/api/student", studentRoutes);
 

@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Components/AuthContext";
+import { API_URL } from "../api";
 
 const EXAM_LIMIT = 6;
 
 export default function TeacherDashboard({ embeddedMode = false }) {
   const navigate = useNavigate();
   const { auth, clearSession } = useAuth();
-  const API_BASE = "/api/teacher";
+  const API_BASE = `${API_URL}/api/teacher`;
 
   const [activeTab, setActiveTab] = useState("generate");
   const [file, setFile] = useState(null);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../Components/AuthContext";
+import { API_URL } from "../api";
 
 // Grade helper
 const getGrade = (percentage) => {
@@ -23,7 +24,7 @@ export default function UserDashboard() {
   const authHeaders = () => ({ Authorization: `Bearer ${auth.token}` });
 
   useEffect(() => {
-    fetch(`/api/student/exams`, { headers: authHeaders() })
+    fetch(`${API_URL}/api/student/exams`, { headers: authHeaders() })
       .then((res) => { if (!res.ok) throw new Error("Failed"); return res.json(); })
       .then((data) => { setExams(data); setLoading(false); })
       .catch(() => setLoading(false));

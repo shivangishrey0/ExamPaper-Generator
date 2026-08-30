@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Webcam from "react-webcam";
 import { useAuth } from "../Components/AuthContext";
+import { API_URL } from "../api";
 
 const AUTOSAVE_KEY = (examId) => `exam_autosave_${examId}`;
 
@@ -28,7 +29,7 @@ export default function TakeExam() {
 
   // Fetch exam + check if already submitted
   useEffect(() => {
-    fetch(`/api/student/exam/${id}`, {
+    fetch(`${API_URL}/api/student/exam/${id}`, {
       headers: { Authorization: `Bearer ${auth.token}` },
     })
       .then((res) => { if (!res.ok) throw new Error("Exam not found"); return res.json(); })
@@ -128,7 +129,7 @@ export default function TakeExam() {
     if (!autoSubmit && !window.confirm("Are you sure you want to submit?")) return;
 
     try {
-      const res = await fetch("/api/student/submit-exam", {
+      const res = await fetch(`${API_URL}/api/student/submit-exam`, {
         method: "POST",
         headers: authHeaders(),
         body: JSON.stringify({ examId: id, answers }),

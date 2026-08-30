@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../Components/AuthContext";
+import { API_URL } from "../api";
 
 export default function AdminCheckPaper() {
   const { examId } = useParams();
@@ -15,12 +16,12 @@ export default function AdminCheckPaper() {
   const authHeaders = () => ({ Authorization: `Bearer ${auth.token}` });
 
   useEffect(() => {
-    fetch(`/api/teacher/submissions/${examId}`, { headers: authHeaders() })
+    fetch(`${API_URL}/api/teacher/submissions/${examId}`, { headers: authHeaders() })
       .then((res) => res.json())
       .then((data) => setSubmissions(data))
       .catch((err) => console.error(err));
 
-    fetch(`/api/teacher/exam/${examId}`, { headers: authHeaders() })
+    fetch(`${API_URL}/api/teacher/exam/${examId}`, { headers: authHeaders() })
       .then((res) => res.json())
       .then((data) => setExamData(data));
   }, [examId]);
@@ -78,7 +79,7 @@ export default function AdminCheckPaper() {
 
   const handlePublishResult = async () => {
     const finalScore = getTotalScore();
-    const res = await fetch("/api/teacher/grade-paper", {
+    const res = await fetch(`${API_URL}/api/teacher/grade-paper`, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ submissionId: selectedPaper._id, score: finalScore }),
