@@ -3,6 +3,8 @@ import {
   register,
   verifyEmail,
   login,
+  refresh,
+  logout,
   forgotPassword,
   resetPassword,
   getAvailableExams,
@@ -19,6 +21,8 @@ router.post("/register", register);
 router.post("/verify-otp", verifyEmail);
 router.post("/verify-email", verifyEmail);
 router.post("/login", login);
+router.post("/refresh", refresh);
+router.post("/logout", logout);
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password", resetPassword);
 router.post("/set-password", setPassword);

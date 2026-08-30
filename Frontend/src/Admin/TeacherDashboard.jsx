@@ -19,11 +19,14 @@ export default function TeacherDashboard({ embeddedMode = false }) {
   const [activeTab, setActiveTab] = useState("generate");
   const [file, setFile] = useState(null);
 
-  // Exam list + pagination state
+  // Exam list + cursor-pagination state (see cursorStack in ManageUsers.jsx
+  // for the same pattern)
   const [exams, setExams] = useState([]);
   const [examTotal, setExamTotal] = useState(0);
-  const [examTotalPages, setExamTotalPages] = useState(1);
-  const [examPage, setExamPage] = useState(1);
+  const [examHasMore, setExamHasMore] = useState(false);
+  const [examCursorStack, setExamCursorStack] = useState([null]);
+  const [examPageIndex, setExamPageIndex] = useState(0);
+  const examPage = examPageIndex + 1;
   const [examLoading, setExamLoading] = useState(false);
   const [examSearch, setExamSearch] = useState("");
   const [examSearchInput, setExamSearchInput] = useState("");
@@ -41,9 +44,10 @@ export default function TeacherDashboard({ embeddedMode = false }) {
 
   const fetchExams = useCallback(async () => {
     setExamLoading(true);
+    const cursor = examCursorStack[examPageIndex];
     const params = new URLSearchParams({
-      page: examPage,
       limit: EXAM_LIMIT,
+      ...(cursor && { cursor }),
       ...(examSearch && { search: examSearch }),
     });
     const res = await apiFetch(`${API_BASE}/exams?${params}`);
@@ -51,19 +55,27 @@ export default function TeacherDashboard({ embeddedMode = false }) {
       const data = await res.json();
       setExams(data.exams);
       setExamTotal(data.total);
-      setExamTotalPages(data.totalPages);
+      setExamHasMore(data.hasMore);
+      if (data.hasMore && examCursorStack.length === examPageIndex + 1) {
+        setExamCursorStack((prev) => [...prev, data.nextCursor]);
+      }
     }
     setExamLoading(false);
-  }, [examPage, examSearch]);
+  }, [examPageIndex, examCursorStack, examSearch]);
 
   useEffect(() => {
     if (activeTab === "view") fetchExams();
   }, [activeTab, fetchExams]);
 
+  const resetExamPaging = () => { setExamCursorStack([null]); setExamPageIndex(0); };
+
   const applyExamSearch = () => {
     setExamSearch(examSearchInput.trim());
-    setExamPage(1);
+    resetExamPaging();
   };
+
+  const goExamPrev = () => setExamPageIndex((i) => Math.max(0, i - 1));
+  const goExamNext = () => { if (examHasMore) setExamPageIndex((i) => i + 1); };
 
   const addQuestion = async () => {
     const payload = {
@@ -114,7 +126,7 @@ export default function TeacherDashboard({ embeddedMode = false }) {
     if (res.ok) {
       success(data.message || "Exam generated");
       setActiveTab("view");
-      setExamPage(1);
+      resetExamPaging();
     } else {
       toastError(data.message || "Failed");
     }
@@ -130,7 +142,7 @@ export default function TeacherDashboard({ embeddedMode = false }) {
     if (!ok) return;
     const res = await apiFetch(`${API_BASE}/exam/${id}`, { method: "DELETE" });
     if (res.ok) {
-      if (exams.length === 1 && examPage > 1) setExamPage(p => p - 1);
+      if (exams.length === 1 && examPageIndex > 0) goExamPrev();
       else fetchExams();
     }
   };
@@ -298,7 +310,7 @@ export default function TeacherDashboard({ embeddedMode = false }) {
                 Search
               </button>
               {examSearch && (
-                <button onClick={() => { setExamSearch(""); setExamSearchInput(""); setExamPage(1); }}
+                <button onClick={() => { setExamSearch(""); setExamSearchInput(""); resetExamPaging(); }}
                   className="px-3 py-2 border rounded text-sm hover:bg-stone-50">
                   Clear
                 </button>
@@ -310,7 +322,6 @@ export default function TeacherDashboard({ embeddedMode = false }) {
               <span>{examLoading ? "Loading..." : `${examTotal} exam${examTotal !== 1 ? "s" : ""}`}
                 {examSearch && <span className="ml-1 text-stone-400">for "{examSearch}"</span>}
               </span>
-              <span>Page {examPage} of {examTotalPages}</span>
             </div>
 
             {/* Exam cards */}
@@ -350,10 +361,12 @@ export default function TeacherDashboard({ embeddedMode = false }) {
             {!examLoading && (
               <Pagination
                 page={examPage}
-                totalPages={examTotalPages}
                 total={examTotal}
                 limit={EXAM_LIMIT}
-                onPageChange={setExamPage}
+                hasPrev={examPageIndex > 0}
+                hasMore={examHasMore}
+                onPrev={goExamPrev}
+                onNext={goExamNext}
                 className="pt-2"
               />
             )}

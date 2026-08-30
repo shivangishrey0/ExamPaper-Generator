@@ -15,6 +15,9 @@ export const verifyToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, secret);
+    if (decoded.type === "refresh") {
+      return res.status(401).json({ message: "Unauthorized: refresh tokens cannot authenticate requests" });
+    }
 
     // Re-check the account on every request so a deactivation takes effect
     // immediately instead of waiting out the token's 7-day lifetime.

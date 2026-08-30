@@ -4,6 +4,7 @@ import xlsx from "xlsx";
 import fs from "fs";
 import Submission from "../models/submission.js";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
 import { escapeRegex } from "../utils/sanitize.js";
  
 dotenv.config();
@@ -177,38 +178,45 @@ export const generatePaper = async (req, res) => {
 };
  
 // --- PAGINATED GET EXAMS ---
-// GET /api/teacher/exams?page=1&limit=6&search=dbms
+// GET /api/teacher/exams?cursor=<examId>&limit=6&search=dbms
 export const getExams = async (req, res) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, parseInt(req.query.limit) || 6);
-    const skip = (page - 1) * limit;
- 
+    const cursor = req.query.cursor;
+
     // Superadmin sees all, teacher sees only their own
     const baseFilter = req.user?.role === "superadmin"
       ? {}
       : { createdBy: getRequestUserId(req) };
- 
+
     // Optional search by title
     if (req.query.search && req.query.search.trim()) {
       baseFilter.title = new RegExp(escapeRegex(req.query.search.trim()), "i");
     }
- 
-    const [exams, total] = await Promise.all([
-      Exam.find(baseFilter)
+
+    const pageFilter = { ...baseFilter };
+    if (cursor && mongoose.isValidObjectId(cursor)) {
+      pageFilter._id = { $lt: cursor };
+    }
+
+    const [rows, total] = await Promise.all([
+      Exam.find(pageFilter)
         .populate("questions")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
+        .sort({ _id: -1 })
+        .limit(limit + 1),
       Exam.countDocuments(baseFilter),
     ]);
- 
+
+    const hasMore = rows.length > limit;
+    const exams = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore ? exams[exams.length - 1]._id : null;
+
     return res.json({
       exams,
       total,
-      page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      nextCursor,
+      hasMore,
     });
   } catch (error) {
     res.status(500).json({ message: "Error fetching exams" });

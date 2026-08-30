@@ -13,9 +13,15 @@ export default function ManageUsers() {
 
   const [users, setUsers] = useState([]);
   const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // cursorStack[i] = the cursor to fetch page (i+1); cursorStack[0] is always
+  // null (first page, no cursor). pageIndex is 0-based; page shown to the
+  // user is pageIndex + 1.
+  const [cursorStack, setCursorStack] = useState([null]);
+  const [pageIndex, setPageIndex] = useState(0);
+  const page = pageIndex + 1;
 
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -27,8 +33,10 @@ export default function ManageUsers() {
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
+    const cursor = cursorStack[pageIndex];
     const params = new URLSearchParams({
-      page, limit: LIMIT,
+      limit: LIMIT,
+      ...(cursor && { cursor }),
       ...(search && { search }),
       ...(roleFilter && { role: roleFilter }),
     });
@@ -37,16 +45,24 @@ export default function ManageUsers() {
       const data = await res.json();
       setUsers(data.users);
       setTotal(data.total);
-      setTotalPages(data.totalPages);
+      setHasMore(data.hasMore);
+      if (data.hasMore && cursorStack.length === pageIndex + 1) {
+        setCursorStack((prev) => [...prev, data.nextCursor]);
+      }
     }
     setLoading(false);
-  }, [page, search, roleFilter]);
+  }, [pageIndex, cursorStack, search, roleFilter]);
 
   useEffect(() => { loadUsers(); }, [loadUsers]);
 
-  const applySearch = () => { setSearch(searchInput.trim()); setPage(1); };
+  const resetPaging = () => { setCursorStack([null]); setPageIndex(0); };
 
-  const handleRoleFilter = (r) => { setRoleFilter(r); setPage(1); };
+  const applySearch = () => { setSearch(searchInput.trim()); resetPaging(); };
+
+  const handleRoleFilter = (r) => { setRoleFilter(r); resetPaging(); };
+
+  const goPrev = () => setPageIndex((i) => Math.max(0, i - 1));
+  const goNext = () => { if (hasMore) setPageIndex((i) => i + 1); };
 
   const handleInvite = async (e) => {
     e.preventDefault();
@@ -60,8 +76,7 @@ export default function ManageUsers() {
     if (res.ok) {
       success(data.message);
       setForm({ username: "", email: "", role: "teacher" });
-      setPage(1);
-      loadUsers();
+      resetPaging(); // cursorStack reference change re-triggers the fetch effect
     } else {
       toastError(data.message);
     }
@@ -91,7 +106,7 @@ export default function ManageUsers() {
     const ok = await confirmDialog("Permanently delete this user? This cannot be undone.", { title: "Delete user", danger: true, confirmLabel: "Delete" });
     if (!ok) return;
     await apiFetch(`/api/superadmin/users/${id}`, { method: "DELETE" });
-    if (users.length === 1 && page > 1) setPage(p => p - 1);
+    if (users.length === 1 && pageIndex > 0) goPrev();
     else loadUsers();
   };
 
@@ -190,7 +205,7 @@ export default function ManageUsers() {
             Search
           </button>
           {search && (
-            <button onClick={() => { setSearch(""); setSearchInput(""); setPage(1); }}
+            <button onClick={() => { setSearch(""); setSearchInput(""); resetPaging(); }}
               className="px-3 py-2 border rounded text-sm hover:bg-stone-50">
               Clear
             </button>
@@ -217,7 +232,6 @@ export default function ManageUsers() {
             {loading ? "Loading..." : `${total} user${total !== 1 ? "s" : ""}`}
             {search && <span className="ml-1 text-stone-400">for "{search}"</span>}
           </span>
-          <span className="text-sm text-stone-400">Page {page} of {totalPages}</span>
         </div>
 
         <table className="w-full text-sm">
@@ -290,10 +304,12 @@ export default function ManageUsers() {
         {!loading && (
           <Pagination
             page={page}
-            totalPages={totalPages}
             total={total}
             limit={LIMIT}
-            onPageChange={setPage}
+            hasPrev={pageIndex > 0}
+            hasMore={hasMore}
+            onPrev={goPrev}
+            onNext={goNext}
             className="px-4 py-3 border-t bg-stone-50"
           />
         )}

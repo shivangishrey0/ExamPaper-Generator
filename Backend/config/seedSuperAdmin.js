@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import User from "../models/User.js";
+import { logger } from "../utils/logger.js";
 
 export const seedSuperAdmin = async () => {
   const email = (process.env.SUPERADMIN_EMAIL || "superadmin@example.com").trim().toLowerCase();
@@ -17,7 +18,7 @@ export const seedSuperAdmin = async () => {
       existing.isVerified = true;
       existing.isActive = true;
       await existing.save();
-      console.log("Updated default superadmin password");
+      logger.info("Updated default superadmin password");
     }
     return;
   }
@@ -32,5 +33,5 @@ export const seedSuperAdmin = async () => {
     isActive: true
   });
 
-  console.log("Seeded default superadmin account");
+  logger.info("Seeded default superadmin account");
 };

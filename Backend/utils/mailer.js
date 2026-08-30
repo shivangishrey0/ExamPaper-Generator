@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import nodemailer from "nodemailer";
+import { logger } from "./logger.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, "../.env") });
@@ -43,11 +44,11 @@ export const sendMail = async (to, subject, html) => {
     try {
       const transporter = createTransport({ host, user, pass, port: tryPort });
       const info = await transporter.sendMail({ from, to, subject, html });
-      console.log("Message sent: %s (port %s)", info.messageId, tryPort);
+      logger.info({ messageId: info.messageId, port: tryPort }, "Message sent");
       return info;
     } catch (error) {
       lastError = error;
-      console.error(`Error sending email on port ${tryPort}:`, error.message);
+      logger.error({ err: error, port: tryPort }, "Error sending email");
     }
   }
 

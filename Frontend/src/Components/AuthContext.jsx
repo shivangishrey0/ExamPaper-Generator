@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
+import { authUrl } from "../api";
 
 const AuthContext = createContext(null);
 
@@ -32,6 +33,9 @@ export function AuthProvider({ children }) {
   };
 
   const clearSession = () => {
+    // Best-effort — clears the httpOnly refresh cookie server-side. Don't block
+    // logout on it; the local session is cleared regardless of network state.
+    fetch(authUrl("/logout"), { method: "POST", credentials: "include" }).catch(() => {});
     localStorage.removeItem("token");
     localStorage.removeItem("userId");
     localStorage.removeItem("name");

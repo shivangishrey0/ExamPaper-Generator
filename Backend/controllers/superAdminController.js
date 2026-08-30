@@ -1,8 +1,10 @@
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import User from "../models/User.js";
 import { sendMail } from "../utils/mailer.js";
 import { escapeRegex } from "../utils/sanitize.js";
+import { logger } from "../utils/logger.js";
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 const INVITE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -73,7 +75,7 @@ export const inviteUser = async (req, res) => {
         `
       );
     } catch (emailError) {
-      console.error("Invite email failed:", emailError.message);
+      logger.error({ err: emailError }, "Invite email failed");
       // Still created the user — superadmin can resend
     }
 
@@ -88,7 +90,7 @@ export const inviteUser = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Invite error:", error);
+    logger.error({ err: error }, "Invite error");
     return res.status(500).json({ message: "Error sending invite" });
   }
 };
@@ -163,28 +165,37 @@ export const setPassword = async (req, res) => {
 // --- PAGINATED LIST USERS ---
 export const listUsers = async (req, res) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, parseInt(req.query.limit) || 8);
-    const skip = (page - 1) * limit;
+    const cursor = req.query.cursor;
 
-    const filter = {};
+    // total/filter matching is computed on this — the cursor only narrows
+    // which page of an already-filtered result set we're on.
+    const baseFilter = {};
     if (req.query.role && ["teacher", "student"].includes(req.query.role)) {
-      filter.role = req.query.role;
+      baseFilter.role = req.query.role;
     }
     if (req.query.search && req.query.search.trim()) {
       const regex = new RegExp(escapeRegex(req.query.search.trim()), "i");
-      filter.$or = [{ username: regex }, { email: regex }];
+      baseFilter.$or = [{ username: regex }, { email: regex }];
     }
 
-    const [users, total] = await Promise.all([
-      User.find(filter, "username email role isActive isVerified createdAt inviteExpiry")
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      User.countDocuments(filter),
+    const pageFilter = { ...baseFilter };
+    if (cursor && mongoose.isValidObjectId(cursor)) {
+      pageFilter._id = { $lt: cursor };
+    }
+
+    const [rows, total] = await Promise.all([
+      User.find(pageFilter, "username email role isActive isVerified createdAt inviteExpiry")
+        .sort({ _id: -1 })
+        .limit(limit + 1),
+      User.countDocuments(baseFilter),
     ]);
 
-    return res.json({ users, total, page, limit, totalPages: Math.ceil(total / limit) });
+    const hasMore = rows.length > limit;
+    const users = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore ? users[users.length - 1]._id : null;
+
+    return res.json({ users, total, limit, nextCursor, hasMore });
   } catch (error) {
     return res.status(500).json({ message: "Error fetching users" });
   }

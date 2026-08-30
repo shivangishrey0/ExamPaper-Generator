@@ -6,14 +6,49 @@ import { sendMail } from "../utils/mailer.js";
 import Exam from "../models/Exam.js";
 import Submission from "../models/submission.js";
 import { getPermissionsForRole } from "../utils/permissions.js";
+import { logger } from "../utils/logger.js";
 
 const getRequestUserId = (req) => req.user?.userId || req.user?.id;
 
-const buildAuthResponse = (user, token) => {
+const ACCESS_TOKEN_EXPIRY = "15m";
+const REFRESH_TOKEN_EXPIRY = "7d";
+const REFRESH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+// Scoped to /api/auth so the cookie is only ever sent to the endpoints that need it.
+const REFRESH_COOKIE_PATH = "/api/auth";
+
+const getAccessSecret = () => process.env.JWT_SECRET;
+// Falls back to the access secret so this works with just JWT_SECRET set, but a
+// separate REFRESH secret means a leaked access-token secret alone can't be
+// used to mint long-lived refresh tokens.
+const getRefreshSecret = () => process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+
+const signAccessToken = (user) => {
+  const permissions = getPermissionsForRole(user.role);
+  return jwt.sign(
+    { userId: user._id, name: user.username, role: user.role, permissions },
+    getAccessSecret(),
+    { expiresIn: ACCESS_TOKEN_EXPIRY }
+  );
+};
+
+const signRefreshToken = (user) =>
+  jwt.sign({ userId: user._id, type: "refresh" }, getRefreshSecret(), { expiresIn: REFRESH_TOKEN_EXPIRY });
+
+const setRefreshCookie = (res, refreshToken) => {
+  res.cookie("refreshToken", refreshToken, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: REFRESH_COOKIE_MAX_AGE_MS,
+    path: REFRESH_COOKIE_PATH,
+  });
+};
+
+const buildAuthResponse = (user, accessToken) => {
   const permissions = getPermissionsForRole(user.role);
   return {
     message: "Login successful",
-    token,
+    token: accessToken,
     userId: user._id,
     name: user.username,
     role: user.role,
@@ -81,13 +116,13 @@ export const register = async (req, res) => {
     try {
       await sendMail(normalizedEmail, "Verify Your Account", `<p>Your verification OTP is: <b>${otp}</b></p>`);
     } catch (emailError) {
-      console.error("Email sending failed:", emailError);
+      logger.error({ err: emailError }, "Email sending failed");
       return res.status(500).json({ message: "Could not send verification email. Please try again." });
     }
 
     res.json({ message: "OTP sent successfully" });
   } catch (err) {
-    console.error("Register Error:", err);
+    logger.error({ err }, "Register error");
     if (err.code === 11000) return res.status(400).json({ message: "Email already exists" });
     if (err.name === "ValidationError") return res.status(400).json({ message: Object.values(err.errors).map(e => e.message).join(", ") });
     res.status(500).json({ message: "Server error: " + err.message });
@@ -134,26 +169,60 @@ export const login = async (req, res) => {
     const match = await bcrypt.compare(password, user.password);
     if (!match) return res.status(400).json({ message: "Incorrect password" });
 
-    const secret = process.env.JWT_SECRET;
-    if (!secret) {
+    if (!getAccessSecret()) {
       return res.status(500).json({ message: "JWT secret is not configured" });
     }
 
-    const permissions = getPermissionsForRole(user.role);
-    const token = jwt.sign(
-      { userId: user._id, name: user.username, role: user.role, permissions },
-      secret,
-      { expiresIn: "7d" }
-    );
+    const accessToken = signAccessToken(user);
+    setRefreshCookie(res, signRefreshToken(user));
 
-    return res.status(200).json(buildAuthResponse(user, token));
+    return res.status(200).json(buildAuthResponse(user, accessToken));
   } catch (error) {
-    console.error("Login error:", error);
+    logger.error({ err: error }, "Login error");
     return res.status(500).json({ message: "Server Error" });
   }
 };
 
 export const adminLogin = login;
+
+// --- REFRESH ACCESS TOKEN ---
+// Public route — auth comes from the httpOnly refresh cookie, not a Bearer header.
+export const refresh = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+    if (!refreshToken) return res.status(401).json({ message: "No refresh token" });
+
+    let decoded;
+    try {
+      decoded = jwt.verify(refreshToken, getRefreshSecret());
+    } catch {
+      return res.status(401).json({ message: "Invalid or expired refresh token" });
+    }
+    if (decoded.type !== "refresh") {
+      return res.status(401).json({ message: "Invalid refresh token" });
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user || !user.isActive) {
+      return res.status(401).json({ message: "Account is deactivated" });
+    }
+
+    const accessToken = signAccessToken(user);
+    // Rotate the refresh token too, so each one is only ever used once.
+    setRefreshCookie(res, signRefreshToken(user));
+
+    return res.status(200).json(buildAuthResponse(user, accessToken));
+  } catch (error) {
+    logger.error({ err: error }, "Refresh error");
+    return res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// --- LOGOUT ---
+export const logout = (req, res) => {
+  res.clearCookie("refreshToken", { path: REFRESH_COOKIE_PATH });
+  res.json({ message: "Logged out" });
+};
 
 // --- FORGOT PASSWORD ---
 export const forgotPassword = async (req, res) => {
@@ -176,7 +245,7 @@ export const forgotPassword = async (req, res) => {
     `);
     res.json({ message: "OTP sent to your email" });
   } catch (error) {
-    console.error("Forgot password error:", error);
+    logger.error({ err: error }, "Forgot password error");
     res.status(500).json({ message: "Error sending email" });
   }
 };
@@ -268,7 +337,6 @@ export const submitExam = async (req, res) => {
     if (existingSubmission) return res.status(400).json({ message: "Already submitted." });
 
     let calculatedScore = 0;
-    console.log("--- INITIAL AUTO-GRADING START ---");
 
     exam.questions.forEach((question) => {
       const qId = question._id.toString();
@@ -319,7 +387,7 @@ export const submitExam = async (req, res) => {
     if (error.code === 11000) {
       return res.status(400).json({ message: "Already submitted." });
     }
-    console.error("Submit Error:", error);
+    logger.error({ err: error }, "Submit error");
     res.status(500).json({ message: "Error submitting exam" });
   }
 };

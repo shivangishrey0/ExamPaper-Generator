@@ -9,8 +9,12 @@ import express from "express";
 import mongoose from "mongoose";
 import cors from "cors";
 import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import pinoHttp from "pino-http";
 import rateLimit from "express-rate-limit";
 import { seedSuperAdmin } from "./config/seedSuperAdmin.js";
+import { logger } from "./utils/logger.js";
+import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 
 // Routes
 import authRoutes from "./routes/auth.js";
@@ -45,9 +49,11 @@ const corsOptions = {
 };
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(pinoHttp({ logger }));
 app.use(cors(corsOptions));
 app.options(/(.*)/, cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 // --- RATE LIMITING ---  ← ADD THIS BLOCK
 const skipPreflight = (req) => req.method === "OPTIONS";
@@ -92,14 +98,28 @@ app.get("/", (req, res) => {
   res.send("Backend Running...");
 });
 
+// Load-balancer / uptime-monitor target: reports whether the process can
+// actually reach the database, not just whether Express is running.
+app.get("/healthz", (req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  res.status(dbConnected ? 200 : 503).json({
+    status: dbConnected ? "ok" : "error",
+    uptime: process.uptime(),
+    db: dbConnected ? "connected" : "disconnected",
+  });
+});
+
+app.use(notFoundHandler);
+app.use(errorHandler);
+
 // CONNECT MONGODB
 mongoose
   .connect(process.env.MONGO_URI)
   .then(async () => {
-    console.log("MongoDB Connected");
+    logger.info("MongoDB Connected");
     await seedSuperAdmin();
   })
-  .catch((err) => console.log("DB Error:", err));
+  .catch((err) => logger.error({ err }, "DB connection failed"));
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => logger.info(`Server running on port ${PORT}`));
