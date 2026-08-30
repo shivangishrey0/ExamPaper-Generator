@@ -1,46 +1,23 @@
 import express from "express";
-import multer from "multer";
 import {
-  adminLogin,
-  addQuestion,
-  generatePaper,
-  getExams,
-  uploadQuestions,
-  getExamById,
-  publishExam,
-  getSubmissions,
-  gradeSubmission,
-
-  deleteExam,
-  deleteAllQuestions // <--- ADDED THIS IMPORT
-} from "../controllers/adminController.js";
-import { authenticateToken, requireRole } from "../middleware/authMiddleware.js";
+  inviteUser,
+  resendInvite,
+  listUsers,
+  deactivateUser,
+  activateUser,
+  deleteUser,
+} from "../controllers/superAdminController.js";
+import { verifyToken, requireRole, requirePermission } from "../middleware/rbac.js";
 
 const router = express.Router();
 
-// Configure Multer for File Uploads
-const upload = multer({ dest: "uploads/" });
+router.use(verifyToken, requireRole("superadmin"), requirePermission("manage_users"));
 
-// --- AUTH ---
-router.post("/login", adminLogin);
-
-router.use(authenticateToken, requireRole("admin"));
-
-// --- QUESTION MANAGEMENT ---
-router.post("/add-question", addQuestion);
-router.post("/upload-questions", upload.single("file"), uploadQuestions);
-
-router.delete("/delete-all-questions", deleteAllQuestions); // <--- ADDED THIS ROUTE
-
-// --- EXAM MANAGEMENT ---
-router.post("/generate-paper", generatePaper);
-router.get("/get-exams", getExams);
-router.get("/exam/:id", getExamById);
-router.delete("/exam/:id", deleteExam);
-
-// --- PUBLISH & GRADING ---
-router.put("/publish/:id", publishExam);
-router.get("/submissions/:examId", getSubmissions);
-router.post("/grade-paper", gradeSubmission);
+router.post("/invite", inviteUser);                          // send invite email
+router.post("/users/:id/resend-invite", resendInvite);       // resend expired invite
+router.get("/users", listUsers);                             // paginated list
+router.patch("/users/:id/deactivate", deactivateUser);
+router.patch("/users/:id/activate", activateUser);
+router.delete("/users/:id", deleteUser);
 
 export default router;
